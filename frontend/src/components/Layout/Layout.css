@@ -13,8 +13,8 @@
 
 .layout__content {
   flex: 1;
-  padding: var(--space-8);
-  max-width: 1280px;
+  padding: var(--space-lg);
+  max-width: 1440px;
   width: 100%;
 }
 
@@ -22,8 +22,7 @@
   .layout__main {
     margin-left: 0;
   }
-
   .layout__content {
-    padding: var(--space-5);
+    padding: var(--space-md);
   }
 }

@@ -7,6 +7,7 @@ import Login from './pages/Login/Login.jsx';
 import Dashboard from './pages/Dashboard/Dashboard.jsx';
 import Tickets from './pages/Tickets/Tickets.jsx';
 import Settings from './pages/Settings/Settings.jsx';
+import UsersPage from './pages/Settings/UsersPage.jsx';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/tickets" element={<Tickets />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/settings/users" element={<UsersPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

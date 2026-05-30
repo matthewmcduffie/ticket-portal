@@ -4,6 +4,9 @@ const MODULE_CONFIG = {
   tickets: true,
   users: true,
   settings: true,
+  email: true,
+  discord: true,
+  slack: true,
 };
 
 export async function loadModules(app) {

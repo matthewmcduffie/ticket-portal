@@ -25,7 +25,7 @@ export default function Login() {
       const { data } = await api.post('/auth/login', form);
       login(data.token, data.user);
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+      setError(err.response?.data?.error || 'Invalid credentials.');
     } finally {
       setLoading(false);
     }
@@ -34,10 +34,15 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <div className="login-card__header">
-          <h1 className="login-card__title">Tickets</h1>
-          <p className="login-card__subtitle">Sign in to your account</p>
+        <div className="login-card__brand">
+          <div className="login-card__brand-icon">
+            <span className="material-symbols-outlined">confirmation_number</span>
+          </div>
+          <span className="login-card__brand-name">Tickets</span>
         </div>
+
+        <h1 className="login-card__heading">Welcome back</h1>
+        <p className="login-card__sub">Sign in to your account to continue.</p>
 
         <form className="login-form" onSubmit={handleSubmit} noValidate>
           {error && (

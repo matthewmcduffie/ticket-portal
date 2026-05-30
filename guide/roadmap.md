@@ -66,7 +66,7 @@ Confidence, auditability, and production hardening.
 - [ ] Email-based user invite system
 - [ ] Branding settings — app name and logo configurable from Settings UI
   - Note: `app_name` is already in `app_settings` table; wire it to the header/title
-- [ ] HTTPS support — Certbot/Let's Encrypt integration in Docker
+- [ ] HTTPS — Caddy handles this automatically via Let's Encrypt (already wired)
 - [ ] Rate limiting on auth endpoints
 - [ ] Backup and restore tooling for the postgres volume
 - [ ] DB connection pooling tuning
@@ -107,8 +107,10 @@ Migrations are plain `.sql` files in `backend/src/db/migrations/`, named `001_�
 1. Copy `.env.example` → `.env` and fill in all values
 2. Generate a strong `JWT_SECRET`: `openssl rand -base64 64`
 3. Set a real `DEFAULT_ADMIN_PASSWORD` — change it again after first login
-4. Point DNS for `tickets.thelastpatch.com` to this server (port 80)
-5. Run: `docker compose up -d --build`
-6. Verify: `curl http://tickets.thelastpatch.com/api/health` → `{"status":"ok"}`
-7. Log in with the admin credentials from `.env`
-8. Go to Settings and update `app_name` if needed
+4. Set `APP_DOMAIN=tickets.thelastpatch.com` in `.env`
+5. Point DNS A record for `tickets.thelastpatch.com` to this server
+6. Run: `docker compose up -d --build`
+7. Caddy automatically obtains and renews the TLS certificate via Let's Encrypt
+8. Verify: `curl https://tickets.thelastpatch.com/api/health` → `{"status":"ok"}`
+9. Log in with the admin credentials from `.env`
+10. Go to Settings and update `app_name` if needed

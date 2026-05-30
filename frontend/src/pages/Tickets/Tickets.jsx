@@ -24,7 +24,7 @@ export default function Tickets() {
   useEffect(() => { loadTickets(); }, [loadTickets]);
 
   function openCreate() { setSelected(null); setShowModal(true); }
-  function openEdit(ticket) { setSelected(ticket); setShowModal(true); }
+  function openTicket(ticket) { setSelected(ticket); setShowModal(true); }
   function onSaved() { setShowModal(false); loadTickets(); }
 
   return (
@@ -75,21 +75,22 @@ export default function Tickets() {
           <table className="tickets-table">
             <thead>
               <tr>
+                <th>ID</th>
                 <th>Title</th>
                 <th>Status</th>
                 <th>Priority</th>
                 <th>Created by</th>
                 <th>Assigned to</th>
                 <th>Date</th>
-                <th></th>
               </tr>
             </thead>
             <tbody>
               {tickets.map(ticket => (
-                <tr key={ticket.id}>
+                <tr key={ticket.id} onClick={() => openTicket(ticket)}>
+                  <td className="tickets-table__id">#{ticket.id.slice(0, 6).toUpperCase()}</td>
                   <td className="tickets-table__title">{ticket.title}</td>
                   <td>
-                    <span className={`badge badge--${ticket.status}`}>
+                    <span className={`badge badge--status badge--${ticket.status}`}>
                       {ticket.status.replace('_', ' ')}
                     </span>
                   </td>
@@ -101,14 +102,6 @@ export default function Tickets() {
                   <td>{ticket.creator_name}</td>
                   <td>{ticket.assignee_name ?? '—'}</td>
                   <td>{new Date(ticket.created_at).toLocaleDateString()}</td>
-                  <td>
-                    <button
-                      className="btn btn--ghost btn--sm"
-                      onClick={() => openEdit(ticket)}
-                    >
-                      Edit
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>

@@ -1,0 +1,80 @@
+.users-page {
+  max-width: 960px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.users-section {
+  background-color: var(--color-surface-lowest);
+  border: var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.users-section__header {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: var(--border);
+  background-color: var(--color-surface-low);
+}
+
+.users-section__header h3 { font-size: var(--text-xl); }
+
+.users-section__desc {
+  font-size: var(--text-base);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.users-create-form {
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.users-create-form__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+@media (max-width: 600px) {
+  .users-create-form__grid { grid-template-columns: 1fr; }
+}
+
+.users-create-form__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.users-alert {
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.users-alert--error   { background-color: var(--color-error-container); color: var(--color-on-error-container); border: 1px solid #fecaca; }
+.users-alert--success { background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+
+.users-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: var(--border);
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  background-color: var(--color-surface-low);
+}
+
+.users-empty {
+  padding: var(--space-xl) var(--space-lg);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+}
+
+/* Re-use the settings table + pagination + search + perpage classes from Settings.css */
+/* They live in global context so they apply here too */
