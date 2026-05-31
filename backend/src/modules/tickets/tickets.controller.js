@@ -51,7 +51,18 @@ export async function getTicketEvents(req, res) {
 
 export async function getRecentActivity(req, res) {
   try {
-    res.json(await svc.getRecentActivity(15));
+    const limit = Math.min(parseInt(req.query.limit) || 100, 100);
+    res.json(await svc.getRecentActivity(limit));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+
+export async function addComment(req, res) {
+  try {
+    const { body } = req.body;
+    if (!body?.trim()) return res.status(400).json({ error: 'Comment body required' });
+    const event = await svc.addComment(req.params.id, body, req.user.id, req.user.role);
+    if (!event) return res.status(404).json({ error: 'Ticket not found or unauthorized' });
+    res.status(201).json(event);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 }
 

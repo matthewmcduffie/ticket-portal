@@ -7,6 +7,7 @@ const MODULE_CONFIG = {
   email: true,
   discord: true,
   slack: true,
+  analytics: true,
 };
 
 export async function loadModules(app) {

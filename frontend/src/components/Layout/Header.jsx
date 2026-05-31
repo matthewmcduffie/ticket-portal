@@ -5,6 +5,7 @@ import './Header.css';
 const PAGE_TITLES = {
   '/dashboard':       'Dashboard',
   '/tickets':         'Tickets',
+  '/analytics':       'Analytics',
   '/settings':        'Settings',
   '/settings/users':  'User Management',
 };

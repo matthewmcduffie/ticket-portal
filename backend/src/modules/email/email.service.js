@@ -66,7 +66,8 @@ export async function sendEmail({ to, subject, text, html: htmlBody }) {
 }
 
 export async function replyToMessage(messageId, { text: textBody, html: htmlBody }) {
-  return am(`/inboxes/${inboxId()}/messages/${messageId}/reply`, 'POST', {
+  const msgId = encodeURIComponent(messageId);
+  return am(`/inboxes/${inboxId()}/messages/${msgId}/reply`, 'POST', {
     text: textBody,
     html: htmlBody,
   });
@@ -101,6 +102,19 @@ export async function notifyStatusChanged({ ticket, creatorEmail, oldStatus, new
   return sendEmail({ to: creatorEmail, subject, text, html: htmlBody });
 }
 
+export async function notifyTicketComment({ ticket, comment, responderName, creatorEmail }) {
+  const id = shortId(ticket.id);
+  const subject = `[Ticket Portal] Response on Ticket ${id}`;
+  const text = `${responderName} responded to your ticket.\n\nTicket: ${ticket.title}\nID: ${id}\n\n${comment}`;
+  const htmlBody = html(
+    `New response on your ticket`,
+    `<p style="font-size:14px;color:#45464d;margin:0 0 16px;"><strong>${responderName}</strong> responded to your ticket:</p>
+     <div style="border-left:3px solid #1a3461;padding:12px 16px;background:#f7f9fb;border-radius:0 4px 4px 0;margin-bottom:20px;font-size:14px;color:#191c1e;white-space:pre-wrap;">${comment.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+     ${table(row('Ticket', ticket.title) + row('ID', id))}`
+  );
+  return sendEmail({ to: creatorEmail, subject, text, html: htmlBody });
+}
+
 export async function notifyTicketMerged({ mergedTicket, primaryTicket, creatorEmail }) {
   const mid = shortId(mergedTicket.id);
   const pid = shortId(primaryTicket.id);
@@ -117,23 +131,59 @@ export async function notifyTicketMerged({ mergedTicket, primaryTicket, creatorE
   return sendEmail({ to: creatorEmail, subject, text, html: htmlBody });
 }
 
+// ── Parse "Name <email>" or bare "email" string ────────────
+function parseFrom(from) {
+  if (!from) return { email: null, name: null };
+  const match = String(from).match(/<([^>]+)>/);
+  if (match) {
+    const email = match[1].toLowerCase().trim();
+    const name  = String(from).replace(/<[^>]+>/, '').replace(/"/g, '').trim() || email.split('@')[0];
+    return { email, name };
+  }
+  const bare = String(from).toLowerCase().trim();
+  return { email: bare, name: bare.split('@')[0] };
+}
+
+const SKIP_SENDERS   = ['mailer-daemon', 'postmaster', 'noreply', 'no-reply', 'amazonses.com'];
+const SKIP_SUBJECTS  = ['delivery status notification', 'undelivered mail', 'mail delivery failed'];
+
 // ── Email → ticket ─────────────────────────────────────────
 export async function processIncomingMessage(message) {
   const db = getDB();
 
-  // Skip if already processed
+  // Skip already-processed or non-inbound messages
   if (message.labels?.includes('processed')) return null;
+  if (!message.labels?.includes('received'))  return null;
 
-  const senderEmail = message.from?.email?.toLowerCase();
-  const subject     = (message.subject || 'Support request').trim();
-  const body        = message.text || message.snippet || '';
+  const { email: senderEmail, name: senderName } = parseFrom(message.from);
+  const subject = (message.subject || 'Support request').trim();
 
   if (!senderEmail) return null;
+
+  // Skip automated senders and bounce notifications
+  const fromLower    = senderEmail.toLowerCase();
+  const subjectLower = subject.toLowerCase();
+  if (SKIP_SENDERS.some(s  => fromLower.includes(s)))    return null;
+  if (SKIP_SUBJECTS.some(s => subjectLower.includes(s)))  return null;
+
+  // Hydrate the full message to get the body — the list endpoint only returns a preview snippet
+  let body = '';
+  try {
+    const msgId = encodeURIComponent(message.message_id);
+    const full  = await am(`/inboxes/${inboxId()}/messages/${msgId}`);
+    body = (full.text || '').trim();
+    // Strip quoted reply blocks ("On ... wrote:") to keep only the user's new content
+    const quoteIndex = body.search(/\r?\nOn .+ wrote:/);
+    if (quoteIndex > 0) body = body.slice(0, quoteIndex).trim();
+  } catch (err) {
+    console.error('Could not hydrate message body:', err.message);
+    body = message.preview || '';
+  }
 
   // Find or create user
   let user = (await db.query('SELECT id, name FROM users WHERE email = $1', [senderEmail])).rows[0];
   if (!user) {
-    const name = message.from?.name || senderEmail.split('@')[0];
+    const name = senderName;
     const hash = await (await import('bcryptjs')).default.hash(Math.random().toString(36), 10);
     user = (await db.query(
       `INSERT INTO users (email, name, password_hash, role)
@@ -158,6 +208,15 @@ export async function processIncomingMessage(message) {
     [ticket.id, user.id, user.name]
   );
 
+  // Fire Discord + Slack notifications (async, non-blocking)
+  const notifyArgs = { ticket, creatorName: user.name, eventType: 'created' };
+  import('../discord/discord.service.js')
+    .then(m => m.sendTicketNotification(notifyArgs))
+    .catch(err => console.error('Discord notify failed:', err.message));
+  import('../slack/slack.service.js')
+    .then(m => m.sendTicketNotification(notifyArgs))
+    .catch(err => console.error('Slack notify failed:', err.message));
+
   // Reply to the thread with confirmation
   const id = shortId(ticket.id);
   try {
@@ -171,7 +230,8 @@ export async function processIncomingMessage(message) {
 
   // Mark message as processed
   try {
-    await am(`/inboxes/${inboxId()}/messages/${message.message_id}`, 'PATCH', {
+    const msgId = encodeURIComponent(message.message_id);
+    await am(`/inboxes/${inboxId()}/messages/${msgId}`, 'PATCH', {
       add_labels: ['processed'],
     });
   } catch (err) {

@@ -218,6 +218,35 @@ export async function mergeTickets(primaryId, ticketIds, userId) {
   return { primary, merged };
 }
 
+export async function addComment(ticketId, body, userId, userRole) {
+  const db = getDB();
+  const ticket = await getTicketById(ticketId);
+  if (!ticket) return null;
+  if (userRole !== 'admin' && ticket.created_by !== userId) return null;
+
+  const u = await db.query('SELECT name FROM users WHERE id = $1', [userId]);
+  const userName = u.rows[0]?.name ?? 'Unknown';
+
+  const result = await db.query(
+    `INSERT INTO ticket_events (ticket_id, user_id, user_name, event_type, detail)
+     VALUES ($1, $2, $3, 'comment', $4) RETURNING *`,
+    [ticketId, userId, userName, body.trim()]
+  );
+
+  // Notify ticket creator when an admin responds (not when creator comments on their own ticket)
+  if (userRole === 'admin' && ticket.created_by !== userId) {
+    tryNotify(async () => {
+      const { notifyTicketComment } = await import('../email/email.service.js');
+      const creator = await db.query('SELECT email FROM users WHERE id = $1', [ticket.created_by]);
+      if (creator.rows[0]?.email) {
+        await notifyTicketComment({ ticket, comment: body, responderName: userName, creatorEmail: creator.rows[0].email });
+      }
+    });
+  }
+
+  return result.rows[0];
+}
+
 export async function deleteTicket(id) {
   await getDB().query('DELETE FROM tickets WHERE id = $1', [id]);
 }

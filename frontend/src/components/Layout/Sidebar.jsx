@@ -6,6 +6,7 @@ import './Sidebar.css';
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { to: '/tickets',   label: 'Tickets',   icon: 'confirmation_number' },
+  { to: '/analytics', label: 'Analytics', icon: 'bar_chart', adminOnly: true },
 ];
 
 export default function Sidebar() {
@@ -37,7 +38,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar__nav" aria-label="Main navigation">
-        {NAV_ITEMS.map(navLink)}
+        {NAV_ITEMS.filter(item => !item.adminOnly || user?.role === 'admin').map(navLink)}
       </nav>
 
       {user?.role === 'admin' && (

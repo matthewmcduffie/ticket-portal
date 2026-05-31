@@ -1,8 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import TicketModal from '../Tickets/TicketModal.jsx';
 import api from '../../services/api.js';
 import './Dashboard.css';
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const ACTIVITY_PER_PAGE_OPTIONS = [6, 25, 100];
+
+function isNew(t) {
+  return Date.now() - new Date(t.created_at).getTime() < ONE_DAY_MS;
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -14,19 +22,24 @@ export default function Dashboard() {
 // USER DASHBOARD
 // ─────────────────────────────────────────────────────────────
 function UserDashboard({ user }) {
-  const [tickets, setTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState(null);
+  const [tickets,       setTickets]       = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [selected,      setSelected]      = useState(null);
+  const [activeFilter,  setActiveFilter]  = useState(null);
 
-  const load = useCallback(() => {
-    setLoading(true);
+  const load = useCallback((showSpinner = false) => {
+    if (showSpinner) setLoading(true);
     api.get('/tickets?limit=100')
       .then(r => setTickets(r.data))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load(true);
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
+  }, [load]);
 
   async function closeTicket(id, e) {
     e.stopPropagation();
@@ -34,9 +47,8 @@ function UserDashboard({ user }) {
     load();
   }
 
-  function toggleTrail(id, e) {
-    e.stopPropagation();
-    setExpandedId(prev => (prev === id ? null : id));
+  function handleCardClick(filter) {
+    setActiveFilter(prev => prev === filter ? null : filter);
   }
 
   const stats = {
@@ -45,6 +57,10 @@ function UserDashboard({ user }) {
     resolved:    tickets.filter(t => t.status === 'resolved').length,
     total:       tickets.length,
   };
+
+  const displayed = activeFilter
+    ? tickets.filter(t => t.status === activeFilter)
+    : tickets;
 
   return (
     <div className="dashboard">
@@ -54,15 +70,22 @@ function UserDashboard({ user }) {
       </div>
 
       <div className="dashboard__stats">
-        <StatCard label="Open"        value={stats.open}        mod="warning" />
-        <StatCard label="In Progress" value={stats.in_progress} mod="info"    />
-        <StatCard label="Resolved"    value={stats.resolved}    mod="success" />
-        <StatCard label="Total"       value={stats.total}       mod="default" />
+        <StatCard label="Open"        value={stats.open}        mod="warning" filter="open"        active={activeFilter} onClick={handleCardClick} />
+        <StatCard label="In Progress" value={stats.in_progress} mod="info"    filter="in_progress" active={activeFilter} onClick={handleCardClick} />
+        <StatCard label="Resolved"    value={stats.resolved}    mod="success" filter="resolved"    active={activeFilter} onClick={handleCardClick} />
+        <StatCard label="Total"       value={stats.total}       mod="default" filter={null}        active={activeFilter} onClick={handleCardClick} />
       </div>
 
       <div className="dashboard__panel">
         <div className="dashboard__panel-header">
-          <h3>My Tickets</h3>
+          <h3>
+            {activeFilter ? `${activeFilter.replace('_', ' ')} tickets` : 'My Tickets'}
+            {activeFilter && (
+              <button className="dash-filter-clear" onClick={() => setActiveFilter(null)}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            )}
+          </h3>
           <Link to="/tickets" className="dashboard__action-link">
             <span className="material-symbols-outlined">add</span>
             New Ticket
@@ -71,13 +94,14 @@ function UserDashboard({ user }) {
 
         {loading ? (
           <div className="dashboard__empty">Loading…</div>
-        ) : tickets.length === 0 ? (
-          <div className="dashboard__empty">You have no tickets yet.</div>
+        ) : displayed.length === 0 ? (
+          <div className="dashboard__empty">
+            {activeFilter ? `No ${activeFilter.replace('_', ' ')} tickets.` : 'No tickets yet.'}
+          </div>
         ) : (
           <table className="dash-table">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Subject</th>
                 <th>Status</th>
                 <th>Priority</th>
@@ -86,60 +110,34 @@ function UserDashboard({ user }) {
               </tr>
             </thead>
             <tbody>
-              {tickets.map(ticket => (
-                <React.Fragment key={ticket.id}>
-                  <tr
-                    className={`dash-table__row${expandedId === ticket.id ? ' dash-table__row--expanded' : ''}`}
-                    onClick={e => toggleTrail(ticket.id, e)}
-                  >
-                    <td className="dash-table__id">#{ticket.id.slice(0, 6).toUpperCase()}</td>
-                    <td className="dash-table__title">{ticket.title}</td>
-                    <td>
-                      <span className={`badge badge--status badge--${ticket.status}`}>
-                        {ticket.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`badge badge--${ticket.priority}`}>
-                        {ticket.priority}
-                      </span>
-                    </td>
-                    <td className="dash-table__date">
-                      {new Date(ticket.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="dash-table__actions" onClick={e => e.stopPropagation()}>
-                      {!['closed', 'resolved'].includes(ticket.status) && (
-                        <button
-                          className="btn btn--ghost btn--sm"
-                          onClick={e => closeTicket(ticket.id, e)}
-                        >
-                          Close
-                        </button>
-                      )}
-                      <button
-                        className={`btn btn--sm ${expandedId === ticket.id ? 'btn--primary' : 'btn--ghost'}`}
-                        onClick={e => toggleTrail(ticket.id, e)}
-                        title="View activity trail"
-                      >
-                        <span className="material-symbols-outlined">history</span>
-                        Trail
-                      </button>
-                    </td>
-                  </tr>
-
-                  {expandedId === ticket.id && (
-                    <tr className="trail-row">
-                      <td colSpan={6}>
-                        <TicketTrail ticketId={ticket.id} />
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
+              {displayed.map(ticket => (
+                <tr key={ticket.id} className="dash-table__row" onClick={() => setSelected(ticket)}>
+                  <td className="dash-table__title">
+                    {isNew(ticket) && <span className="dash-new-badge">New</span>}
+                    {ticket.title}
+                  </td>
+                  <td>
+                    <span className={`badge badge--status badge--${ticket.status}`}>
+                      {ticket.status.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td><span className={`badge badge--${ticket.priority}`}>{ticket.priority}</span></td>
+                  <td className="dash-table__date">{new Date(ticket.created_at).toLocaleDateString()}</td>
+                  <td className="dash-table__actions" onClick={e => e.stopPropagation()}>
+                    {!['closed', 'resolved'].includes(ticket.status) && (
+                      <button className="btn btn--ghost btn--sm" onClick={e => closeTicket(ticket.id, e)}>Close</button>
+                    )}
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {selected && (
+        <TicketModal ticket={selected} onClose={() => setSelected(null)} onSaved={() => { setSelected(null); load(); }} />
+      )}
     </div>
   );
 }
@@ -148,15 +146,19 @@ function UserDashboard({ user }) {
 // ADMIN DASHBOARD
 // ─────────────────────────────────────────────────────────────
 function AdminDashboard({ user }) {
-  const [tickets, setTickets] = useState([]);
-  const [activity, setActivity] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState(null);
+  const [tickets,       setTickets]       = useState([]);
+  const [activity,      setActivity]      = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [selected,      setSelected]      = useState(null);
+  const [activeFilter,  setActiveFilter]  = useState(null);
+  const [activityPerPage, setActivityPerPage] = useState(6);
+  const [activityPage,    setActivityPage]    = useState(1);
 
-  useEffect(() => {
+  const load = useCallback((showSpinner = false) => {
+    if (showSpinner) setLoading(true);
     Promise.all([
       api.get('/tickets?limit=100'),
-      api.get('/tickets/activity'),
+      api.get('/tickets/activity?limit=100'),
     ])
       .then(([tRes, aRes]) => {
         setTickets(tRes.data);
@@ -166,12 +168,40 @@ function AdminDashboard({ user }) {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    load(true);
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
+  }, [load]);
+
+  // Reset activity page when per-page changes
+  useEffect(() => { setActivityPage(1); }, [activityPerPage]);
+
+  function handleCardClick(filter) {
+    setActiveFilter(prev => prev === filter ? null : filter);
+  }
+
+  function openFromActivity(ev) {
+    const ticket = tickets.find(t => t.id === ev.ticket_id);
+    if (ticket) setSelected(ticket);
+  }
+
   const stats = {
     total:       tickets.length,
     open:        tickets.filter(t => t.status === 'open').length,
     in_progress: tickets.filter(t => t.status === 'in_progress').length,
     resolved:    tickets.filter(t => t.status === 'resolved').length,
   };
+
+  const filteredTickets = activeFilter
+    ? tickets.filter(t => t.status === activeFilter)
+    : tickets.slice(0, 10);
+
+  const totalActivityPages = Math.max(1, Math.ceil(activity.length / activityPerPage));
+  const pagedActivity = activity.slice(
+    (activityPage - 1) * activityPerPage,
+    activityPage * activityPerPage
+  );
 
   return (
     <div className="dashboard">
@@ -181,22 +211,32 @@ function AdminDashboard({ user }) {
       </div>
 
       <div className="dashboard__stats">
-        <StatCard label="Total Tickets" value={stats.total}       mod="default" />
-        <StatCard label="Open"          value={stats.open}        mod="warning" />
-        <StatCard label="In Progress"   value={stats.in_progress} mod="info"    />
-        <StatCard label="Resolved"      value={stats.resolved}    mod="success" />
+        <StatCard label="Total"       value={stats.total}       mod="default" filter={null}        active={activeFilter} onClick={handleCardClick} />
+        <StatCard label="Open"        value={stats.open}        mod="warning" filter="open"        active={activeFilter} onClick={handleCardClick} />
+        <StatCard label="In Progress" value={stats.in_progress} mod="info"    filter="in_progress" active={activeFilter} onClick={handleCardClick} />
+        <StatCard label="Resolved"    value={stats.resolved}    mod="success" filter="resolved"    active={activeFilter} onClick={handleCardClick} />
       </div>
 
       <div className="dashboard__two-col">
-        {/* Recent tickets */}
+
+        {/* Recent / Filtered Tickets */}
         <div className="dashboard__panel">
           <div className="dashboard__panel-header">
-            <h3>Recent Tickets</h3>
-            <Link to="/tickets" className="dashboard__action-link">View all →</Link>
+            <h3>
+              {activeFilter ? `${activeFilter.replace('_', ' ')} tickets` : 'Recent Tickets'}
+              {activeFilter && (
+                <button className="dash-filter-clear" onClick={() => setActiveFilter(null)}>
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              )}
+            </h3>
+            {!activeFilter && <Link to="/tickets" className="dashboard__action-link">View all →</Link>}
           </div>
 
           {loading ? (
             <div className="dashboard__empty">Loading…</div>
+          ) : filteredTickets.length === 0 ? (
+            <div className="dashboard__empty">No {activeFilter?.replace('_', ' ')} tickets.</div>
           ) : (
             <table className="dash-table">
               <thead>
@@ -204,60 +244,74 @@ function AdminDashboard({ user }) {
                   <th>Subject</th>
                   <th>Status</th>
                   <th>Priority</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {tickets.slice(0, 8).map(ticket => (
-                  <React.Fragment key={ticket.id}>
-                    <tr
-                      className={`dash-table__row${expandedId === ticket.id ? ' dash-table__row--expanded' : ''}`}
-                      onClick={() => setExpandedId(p => p === ticket.id ? null : ticket.id)}
-                    >
-                      <td className="dash-table__title">{ticket.title}</td>
-                      <td>
-                        <span className={`badge badge--status badge--${ticket.status}`}>
-                          {ticket.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`badge badge--${ticket.priority}`}>
-                          {ticket.priority}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="material-symbols-outlined dash-table__expand-icon">
-                          {expandedId === ticket.id ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </td>
-                    </tr>
-                    {expandedId === ticket.id && (
-                      <tr className="trail-row">
-                        <td colSpan={4}>
-                          <TicketTrail ticketId={ticket.id} />
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
+                {filteredTickets.map(ticket => (
+                  <tr key={ticket.id} className="dash-table__row" onClick={() => setSelected(ticket)}>
+                    <td className="dash-table__title">
+                      {isNew(ticket) && <span className="dash-new-badge">New</span>}
+                      {ticket.title}
+                    </td>
+                    <td>
+                      <span className={`badge badge--status badge--${ticket.status}`}>
+                        {ticket.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td><span className={`badge badge--${ticket.priority}`}>{ticket.priority}</span></td>
+                  </tr>
                 ))}
               </tbody>
             </table>
           )}
         </div>
 
-        {/* Recent activity feed */}
+        {/* Recent Activity with pagination */}
         <div className="dashboard__panel">
           <div className="dashboard__panel-header">
             <h3>Recent Activity</h3>
+            <div className="activity-pagination">
+              {ACTIVITY_PER_PAGE_OPTIONS.map(n => (
+                <button
+                  key={n}
+                  className={`activity-perpage-btn${activityPerPage === n ? ' activity-perpage-btn--active' : ''}`}
+                  onClick={() => setActivityPerPage(n)}
+                >
+                  {n}
+                </button>
+              ))}
+              <button
+                className="activity-nav-btn"
+                onClick={() => setActivityPage(p => Math.max(1, p - 1))}
+                disabled={activityPage === 1}
+                aria-label="Previous"
+              >
+                <span className="material-symbols-outlined">chevron_left</span>
+              </button>
+              <span className="activity-page-info">{activityPage}/{totalActivityPages}</span>
+              <button
+                className="activity-nav-btn"
+                onClick={() => setActivityPage(p => Math.min(totalActivityPages, p + 1))}
+                disabled={activityPage === totalActivityPages}
+                aria-label="Next"
+              >
+                <span className="material-symbols-outlined">chevron_right</span>
+              </button>
+            </div>
           </div>
+
           {loading ? (
             <div className="dashboard__empty">Loading…</div>
-          ) : activity.length === 0 ? (
+          ) : pagedActivity.length === 0 ? (
             <div className="dashboard__empty">No activity yet.</div>
           ) : (
             <div className="activity-feed">
-              {activity.map(ev => (
-                <div key={ev.id} className="activity-item">
+              {pagedActivity.map(ev => (
+                <div
+                  key={ev.id}
+                  className="activity-item activity-item--clickable"
+                  onClick={() => openFromActivity(ev)}
+                >
                   <div className={`activity-item__dot activity-item__dot--${ev.event_type}`} />
                   <div className="activity-item__body">
                     <div className="activity-item__detail">{ev.detail}</div>
@@ -269,70 +323,45 @@ function AdminDashboard({ user }) {
                       <span>{timeAgo(ev.created_at)}</span>
                     </div>
                   </div>
+                  <span className="material-symbols-outlined activity-item__arrow">chevron_right</span>
                 </div>
               ))}
             </div>
           )}
         </div>
+
       </div>
+
+      {selected && (
+        <TicketModal ticket={selected} onClose={() => setSelected(null)} onSaved={() => { setSelected(null); load(); }} />
+      )}
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
-// SHARED COMPONENTS
+// SHARED
 // ─────────────────────────────────────────────────────────────
-function StatCard({ label, value, mod }) {
+function StatCard({ label, value, mod, filter, active, onClick }) {
+  const isActive = active === filter || (filter === null && active === null);
   return (
-    <div className={`stat-card stat-card--${mod}`}>
+    <button
+      className={`stat-card stat-card--${mod}${isActive && active !== null ? ' stat-card--active' : ''}`}
+      onClick={() => onClick(filter)}
+    >
       <div className="stat-card__label">{label}</div>
       <div className="stat-card__value">{value}</div>
-    </div>
-  );
-}
-
-function TicketTrail({ ticketId }) {
-  const [events, setEvents] = useState(null);
-
-  useEffect(() => {
-    api.get(`/tickets/${ticketId}/events`)
-      .then(r => setEvents(r.data))
-      .catch(() => setEvents([]));
-  }, [ticketId]);
-
-  if (events === null) return <div className="trail-loading">Loading trail…</div>;
-  if (events.length === 0) return <div className="trail-loading">No activity recorded.</div>;
-
-  return (
-    <div className="trail">
-      <div className="trail__heading">Activity Trail</div>
-      <div className="trail__timeline">
-        {events.map((ev, i) => (
-          <div key={ev.id} className="trail__event">
-            <div className="trail__line-wrap">
-              <div className={`trail__dot trail__dot--${ev.event_type}`} />
-              {i < events.length - 1 && <div className="trail__line" />}
-            </div>
-            <div className="trail__content">
-              <div className="trail__detail">{ev.detail}</div>
-              <div className="trail__meta">
-                <span className="material-symbols-outlined trail__meta-icon">person</span>
-                {ev.user_name}
-                <span className="trail__sep">·</span>
-                {new Date(ev.created_at).toLocaleString()}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+      {isActive && active !== null && (
+        <div className="stat-card__filter-hint">filtering ↓</div>
+      )}
+    </button>
   );
 }
 
 function timeAgo(dateStr) {
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
-  if (diff < 60)   return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 60)    return `${diff}s ago`;
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return `${Math.floor(diff / 86400)}d ago`;
 }
