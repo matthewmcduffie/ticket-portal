@@ -86,10 +86,6 @@ function UserDashboard({ user }) {
               </button>
             )}
           </h3>
-          <Link to="/tickets" className="dashboard__action-link">
-            <span className="material-symbols-outlined">add</span>
-            New Ticket
-          </Link>
         </div>
 
         {loading ? (

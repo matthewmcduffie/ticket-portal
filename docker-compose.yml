@@ -38,6 +38,8 @@ services:
       APP_DOMAIN: ${APP_DOMAIN}
       DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL}
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,3 +63,4 @@ networks:
 
 volumes:
   postgres_data:
+  uploads_data:

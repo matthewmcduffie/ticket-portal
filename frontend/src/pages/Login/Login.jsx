@@ -23,9 +23,12 @@ export default function Login() {
     setLoading(true);
     try {
       const { data } = await api.post('/auth/login', form);
-      login(data.token, data.user);
+      login(data.user);
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid credentials.');
+      setError(
+        err.response?.data?.error ||
+        (err.response ? 'Sign in failed. Please try again.' : 'Could not reach the server. Please try again.')
+      );
     } finally {
       setLoading(false);
     }

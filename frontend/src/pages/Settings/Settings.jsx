@@ -6,15 +6,19 @@ import './Settings.css';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const [activeDrawer, setActiveDrawer] = useState(null);
-  const [userCount,    setUserCount]    = useState(null);
-  const [discordOk,    setDiscordOk]    = useState(false);
-  const [slackOk,      setSlackOk]      = useState(false);
+  const [activeDrawer,    setActiveDrawer]    = useState(null);
+  const [userCount,       setUserCount]       = useState(null);
+  const [discordOk,       setDiscordOk]       = useState(false);
+  const [slackOk,         setSlackOk]         = useState(false);
+  const [uploadsEnabled,  setUploadsEnabled]  = useState(true);
+  const [whitelistCount,  setWhitelistCount]  = useState(null);
 
   useEffect(() => {
     api.get('/users').then(r => setUserCount(r.data.length)).catch(() => {});
     api.get('/discord').then(r => setDiscordOk(!!r.data.discord_webhook_url)).catch(() => {});
     api.get('/slack').then(r => setSlackOk(!!r.data.slack_webhook_url)).catch(() => {});
+    api.get('/attachments/config').then(r => setUploadsEnabled(r.data.enabled)).catch(() => {});
+    api.get('/whitelist').then(r => setWhitelistCount(r.data.length)).catch(() => {});
   }, []);
 
   const CARDS = [
@@ -62,6 +66,26 @@ export default function Settings() {
       status: slackOk ? 'connected' : 'unconfigured',
       action: 'drawer',
     },
+    {
+      id: 'uploads',
+      icon: 'upload_file',
+      iconColor: '#059669',
+      title: 'File Uploads',
+      description: 'Control whether users can attach files to tickets and set per-file and total size limits.',
+      status: uploadsEnabled ? 'enabled' : 'disabled',
+      action: 'drawer',
+    },
+    {
+      id: 'whitelist',
+      icon: 'shield',
+      iconColor: '#b45309',
+      title: 'Email Whitelist',
+      description: 'Restrict inbound email tickets to specific addresses or domains to reduce spam.',
+      meta: whitelistCount !== null
+        ? (whitelistCount === 0 ? 'Open — all senders allowed' : `${whitelistCount} entr${whitelistCount !== 1 ? 'ies' : 'y'}`)
+        : null,
+      action: 'drawer',
+    },
   ];
 
   function handleCard(card) {
@@ -85,6 +109,8 @@ export default function Settings() {
               {card.meta && <span className="settings-card__meta">{card.meta}</span>}
               {card.status === 'connected'    && <span className="settings-card__status settings-card__status--ok">Connected</span>}
               {card.status === 'unconfigured' && <span className="settings-card__status settings-card__status--off">Not configured</span>}
+              {card.status === 'enabled'      && <span className="settings-card__status settings-card__status--ok">Enabled</span>}
+              {card.status === 'disabled'     && <span className="settings-card__status settings-card__status--off">Disabled</span>}
               <span className="material-symbols-outlined settings-card__arrow">
                 {card.action === 'page' ? 'arrow_forward' : 'chevron_right'}
               </span>
@@ -107,6 +133,14 @@ export default function Settings() {
 
       <Drawer open={activeDrawer === 'slack'} onClose={() => setActiveDrawer(null)} title="Slack Integration">
         <SlackDrawer onConfigChange={() => api.get('/slack').then(r => setSlackOk(!!r.data.slack_webhook_url)).catch(() => {})} />
+      </Drawer>
+
+      <Drawer open={activeDrawer === 'uploads'} onClose={() => setActiveDrawer(null)} title="File Upload Settings">
+        <UploadsDrawer onConfigChange={enabled => setUploadsEnabled(enabled)} />
+      </Drawer>
+
+      <Drawer open={activeDrawer === 'whitelist'} onClose={() => setActiveDrawer(null)} title="Email Whitelist">
+        <WhitelistDrawer onCountChange={n => setWhitelistCount(n)} />
       </Drawer>
     </div>
   );
@@ -134,8 +168,12 @@ function AppSettingsDrawer() {
     finally { setSavingKey(null); }
   }
 
-  // Filter out discord/notification settings managed elsewhere
-  const appSettings = settings.filter(s => !s.key.startsWith('discord_') && !s.key.startsWith('email_'));
+  const appSettings = settings.filter(s =>
+    !s.key.startsWith('discord_') &&
+    !s.key.startsWith('email_') &&
+    !s.key.startsWith('upload') &&
+    s.key !== 'uploads_enabled'
+  );
 
   return (
     <>
@@ -345,6 +383,98 @@ function DiscordDrawer({ onConfigChange }) {
   );
 }
 
+// ─── Uploads Drawer ───────────────────────────────────────────────────────────
+function UploadsDrawer({ onConfigChange }) {
+  const [config,  setConfig]  = useState(null);
+  const [saving,  setSaving]  = useState(false);
+  const [toast,   setToast]   = useState('');
+
+  useEffect(() => {
+    api.get('/attachments/config').then(r => setConfig(r.data)).catch(console.error);
+  }, []);
+
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 2500); }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await api.patch('/settings/uploads_enabled',          { value: config.enabled ? 'true' : 'false' });
+      await api.patch('/settings/upload_max_file_size_mb',  { value: String(config.maxFileSizeMb) });
+      await api.patch('/settings/upload_max_total_size_mb', { value: String(config.maxTotalSizeMb) });
+      showToast('Saved');
+      onConfigChange?.(config.enabled);
+    } catch { showToast('Error saving'); }
+    finally { setSaving(false); }
+  }
+
+  if (!config) return <div className="drawer-loading">Loading…</div>;
+
+  return (
+    <>
+      {toast && <div className="drawer-toast drawer-toast--success">{toast}</div>}
+
+      <div className="drawer-section">
+        <h4 className="drawer-section__title">Enable File Uploads</h4>
+        <p className="drawer-section__desc">When disabled, the file attachment UI is hidden from all users and upload requests are rejected.</p>
+        <div className="drawer-toggles">
+          <label className="drawer-toggle">
+            <input
+              type="checkbox"
+              className="drawer-toggle__check"
+              checked={config.enabled}
+              onChange={e => setConfig(c => ({ ...c, enabled: e.target.checked }))}
+            />
+            <div className="drawer-toggle__info">
+              <div className="drawer-toggle__label">Allow file attachments on tickets</div>
+              <div className="drawer-toggle__desc">Users can attach images, PDFs, documents, spreadsheets, and ZIP files.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div className="drawer-section">
+        <h4 className="drawer-section__title">Size Limits</h4>
+        <p className="drawer-section__desc">Limits apply per upload action. Set either to <code>0</code> to use the server default.</p>
+        <div className="drawer-size-fields">
+          <div className="form-field">
+            <label className="form-label" htmlFor="upload-file-size">Max file size (MB)</label>
+            <input
+              id="upload-file-size"
+              type="number"
+              min="1"
+              max="500"
+              className="form-input"
+              value={config.maxFileSizeMb}
+              onChange={e => setConfig(c => ({ ...c, maxFileSizeMb: Math.max(1, parseInt(e.target.value) || 1) }))}
+            />
+          </div>
+          <div className="form-field">
+            <label className="form-label" htmlFor="upload-total-size">Max total per upload (MB)</label>
+            <input
+              id="upload-total-size"
+              type="number"
+              min="1"
+              max="2000"
+              className="form-input"
+              value={config.maxTotalSizeMb}
+              onChange={e => setConfig(c => ({ ...c, maxTotalSizeMb: Math.max(1, parseInt(e.target.value) || 1) }))}
+            />
+          </div>
+        </div>
+        <p className="drawer-section__hint">
+          Accepted types: JPEG, PNG, GIF, WebP, PDF, Word, Excel, CSV, ZIP, plain text.
+        </p>
+      </div>
+
+      <div className="drawer-actions">
+        <button className="btn btn--primary" onClick={save} disabled={saving}>
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+    </>
+  );
+}
+
 // ─── Slack Drawer ──────────────────────────────────────────────────────────────
 function SlackDrawer({ onConfigChange }) {
   const [config,  setConfig]  = useState(null);
@@ -451,6 +581,109 @@ function SlackDrawer({ onConfigChange }) {
           {result.success ? '✓ Test message sent to Slack' : `✗ Failed — ${result.error}`}
         </div>
       )}
+    </>
+  );
+}
+
+// ─── Whitelist Drawer ──────────────────────────────────────────────────────────
+function WhitelistDrawer({ onCountChange }) {
+  const [entries,  setEntries]  = useState(null);
+  const [type,     setType]     = useState('domain');
+  const [value,    setValue]    = useState('');
+  const [adding,   setAdding]   = useState(false);
+  const [toast,    setToast]    = useState('');
+  const [err,      setErr]      = useState('');
+
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 2500); }
+
+  function load() {
+    api.get('/whitelist').then(r => {
+      setEntries(r.data);
+      onCountChange?.(r.data.length);
+    }).catch(console.error);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    setErr('');
+    if (!value.trim()) return;
+    setAdding(true);
+    try {
+      await api.post('/whitelist', { type, value: value.trim() });
+      setValue('');
+      showToast('Added');
+      load();
+    } catch (er) {
+      setErr(er.response?.data?.error || 'Failed to add entry');
+    } finally { setAdding(false); }
+  }
+
+  async function handleRemove(id) {
+    try {
+      await api.delete(`/whitelist/${id}`);
+      showToast('Removed');
+      load();
+    } catch { setErr('Failed to remove entry'); }
+  }
+
+  if (!entries) return <div className="drawer-loading">Loading…</div>;
+
+  return (
+    <>
+      {toast && <div className="drawer-toast drawer-toast--success">{toast}</div>}
+
+      <div className="drawer-section">
+        <h4 className="drawer-section__title">How it works</h4>
+        <p className="drawer-section__desc">
+          When at least one entry is present, only emails from listed addresses or domains will create tickets.
+          If the list is empty, all senders are accepted.
+        </p>
+      </div>
+
+      <div className="drawer-section">
+        <h4 className="drawer-section__title">Add entry</h4>
+        {err && <p className="drawer-section__error">{err}</p>}
+        <form className="whitelist-add-form" onSubmit={handleAdd}>
+          <select className="form-select whitelist-add-form__type" value={type} onChange={e => setType(e.target.value)}>
+            <option value="domain">Domain</option>
+            <option value="email">Email</option>
+          </select>
+          <input
+            className="form-input whitelist-add-form__value"
+            placeholder={type === 'domain' ? 'hospital.com' : 'user@hospital.com'}
+            value={value}
+            onChange={e => setValue(e.target.value)}
+          />
+          <button className="btn btn--primary btn--sm" type="submit" disabled={adding || !value.trim()}>
+            {adding ? '…' : 'Add'}
+          </button>
+        </form>
+      </div>
+
+      <div className="drawer-section">
+        <h4 className="drawer-section__title">
+          Current list
+          {entries.length > 0 && <span className="whitelist-count">{entries.length}</span>}
+        </h4>
+        {entries.length === 0 ? (
+          <p className="drawer-section__desc">No entries — all inbound senders are currently accepted.</p>
+        ) : (
+          <div className="whitelist-list">
+            {entries.map(e => (
+              <div key={e.id} className="whitelist-item">
+                <span className={`whitelist-item__badge whitelist-item__badge--${e.type}`}>{e.type}</span>
+                <span className="whitelist-item__value">{e.value}</span>
+                <button type="button" className="whitelist-item__remove" title="Remove"
+                  onClick={() => handleRemove(e.id)}>
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </>
   );
 }

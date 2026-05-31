@@ -54,6 +54,43 @@
   margin-top: 1px;
 }
 
+/* ── New Ticket CTA ────────────────────────────────── */
+.sidebar__cta {
+  padding: var(--space-md) var(--space-md) var(--space-sm);
+  flex-shrink: 0;
+}
+
+.sidebar__new-ticket {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 13px var(--space-md);
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-family: var(--font-sans);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  border: none;
+  box-shadow: var(--shadow-md);
+  transition: opacity var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.sidebar__new-ticket:hover {
+  opacity: 0.9;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+.sidebar__new-ticket .material-symbols-outlined {
+  font-size: 22px;
+  color: var(--color-on-primary);
+}
+
 /* ── Navigation ────────────────────────────────────── */
 .sidebar__nav {
   flex: 1;

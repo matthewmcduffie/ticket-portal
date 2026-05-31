@@ -1,15 +1,26 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api.js';
 import TicketModal from './TicketModal.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import './Tickets.css';
 
 const PER_PAGE_OPTIONS = [20, 50, 100];
 
 export default function Tickets() {
+  const { user } = useAuth();
   const [tickets,  setTickets]  = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [selected, setSelected] = useState(null);
   const [showNew,  setShowNew]  = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowNew(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams]);
 
   // Filters / search / pagination
   const [search,   setSearch]   = useState('');
@@ -130,11 +141,13 @@ export default function Tickets() {
           </button>
         )}
 
-        {/* New ticket — pushed right */}
-        <button className="btn btn--primary tickets-toolbar__new" onClick={() => setShowNew(true)}>
-          <span className="material-symbols-outlined">add</span>
-          New Ticket
-        </button>
+        {/* New ticket — pushed right, admin only (users use the sidebar button) */}
+        {user?.role === 'admin' && (
+          <button className="btn btn--primary tickets-toolbar__new" onClick={() => setShowNew(true)}>
+            <span className="material-symbols-outlined">add</span>
+            New Ticket
+          </button>
+        )}
       </div>
 
       {/* ── Table ── */}

@@ -9,6 +9,8 @@ import Tickets from './pages/Tickets/Tickets.jsx';
 import Settings from './pages/Settings/Settings.jsx';
 import UsersPage from './pages/Settings/UsersPage.jsx';
 import Analytics from './pages/Analytics/Analytics.jsx';
+import ChangePassword from './pages/ChangePassword/ChangePassword.jsx';
+import ResetPassword from './pages/ResetPassword/ResetPassword.jsx';
 
 export default function App() {
   return (
@@ -16,7 +18,10 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route element={<ProtectedRoute />}>
+            {/* Change-password shown without sidebar/header */}
+            <Route path="/change-password" element={<ChangePassword />} />
             <Route element={<Layout />}>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />

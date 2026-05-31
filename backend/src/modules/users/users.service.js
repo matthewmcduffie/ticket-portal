@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { getDB } from '../../config/database.js';
+import { validatePassword } from '../auth/auth.service.js';
 
-const SAFE_FIELDS = 'id, email, name, role, active, created_at';
+const SAFE_FIELDS = 'id, email, name, role, active, must_change_password, created_at';
 
 export async function listUsers() {
   const db = getDB();
@@ -16,11 +17,14 @@ export async function getUserById(id) {
 }
 
 export async function createUser({ email, name, password, role = 'user' }) {
+  const err = validatePassword(password);
+  if (err) throw Object.assign(new Error(err), { code: 'WEAK_PASSWORD' });
+
   const db = getDB();
   const hash = await bcrypt.hash(password, 12);
   const result = await db.query(
-    `INSERT INTO users (email, name, password_hash, role)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO users (email, name, password_hash, role, must_change_password)
+     VALUES ($1, $2, $3, $4, TRUE)
      RETURNING ${SAFE_FIELDS}`,
     [email.toLowerCase(), name, hash, role]
   );
@@ -40,9 +44,14 @@ export async function updateUser(id, updates) {
     }
   }
   if (updates.password) {
+    const err = validatePassword(updates.password);
+    if (err) throw Object.assign(new Error(err), { code: 'WEAK_PASSWORD' });
     const hash = await bcrypt.hash(updates.password, 12);
     values.push(hash);
     fields.push(`password_hash = $${values.length}`);
+    // Admin password reset — require change on next login
+    values.push(true);
+    fields.push(`must_change_password = $${values.length}`);
   }
   if (!fields.length) return getUserById(id);
 

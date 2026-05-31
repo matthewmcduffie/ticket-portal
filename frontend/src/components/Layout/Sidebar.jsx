@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import './Sidebar.css';
 
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const navLink = (item) => (
     <NavLink
@@ -35,6 +36,13 @@ export default function Sidebar() {
           <div className="sidebar__brand-name">Tickets</div>
           <div className="sidebar__brand-sub">Support Portal</div>
         </div>
+      </div>
+
+      <div className="sidebar__cta">
+        <button className="sidebar__new-ticket" onClick={() => navigate('/tickets?new=1')}>
+          <span className="material-symbols-outlined">add</span>
+          New Ticket
+        </button>
       </div>
 
       <nav className="sidebar__nav" aria-label="Main navigation">

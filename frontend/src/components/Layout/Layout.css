@@ -18,6 +18,62 @@
   width: 100%;
 }
 
+/* ── Inactivity warning ──────────────────────────────── */
+.inactivity-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(2px);
+}
+
+.inactivity-dialog {
+  background: var(--color-surface-lowest);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl) var(--space-lg);
+  max-width: 360px;
+  width: 90%;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.inactivity-dialog__emoji {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.inactivity-dialog__msg {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.inactivity-dialog__countdown {
+  font-size: var(--text-base);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.inactivity-dialog__countdown strong {
+  color: var(--color-error);
+  font-variant-numeric: tabular-nums;
+}
+
+.inactivity-dialog__btn {
+  width: 100%;
+  padding: 12px var(--space-md);
+  font-size: var(--text-lg);
+}
+
 @media (max-width: 768px) {
   .layout__main {
     margin-left: 0;

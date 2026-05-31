@@ -19,6 +19,7 @@ export default function UsersPage() {
   const [creating,      setCreating]      = useState(false);
   const [createError,   setCreateError]   = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
+  const [actionMsg,     setActionMsg]     = useState('');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -65,6 +66,25 @@ export default function UsersPage() {
       await api.patch(`/users/${u.id}`, { active: !u.active });
       load();
     } catch (err) { console.error(err); }
+  }
+
+  async function unlockUser(u) {
+    try {
+      await api.post(`/users/${u.id}/unlock`);
+      setActionMsg(`${u.name}'s account has been unlocked.`);
+      setTimeout(() => setActionMsg(''), 4000);
+    } catch (err) { console.error(err); }
+  }
+
+  async function sendReset(u) {
+    try {
+      await api.post(`/users/${u.id}/send-reset`);
+      setActionMsg(`Password reset email sent to ${u.email}.`);
+      setTimeout(() => setActionMsg(''), 4000);
+    } catch (err) {
+      setActionMsg('Failed to send reset email. Check your AgentMail configuration.');
+      setTimeout(() => setActionMsg(''), 5000);
+    }
   }
 
   function getPageNumbers() {
@@ -125,6 +145,7 @@ export default function UsersPage() {
 
       {/* User list */}
       <section className="users-section">
+        {actionMsg && <div className="users-alert users-alert--success">{actionMsg}</div>}
         <div className="users-section__header">
           <h3>All Users</h3>
           <p className="users-section__desc">{users.length} total</p>
@@ -191,7 +212,7 @@ export default function UsersPage() {
                     </td>
                     <td className="settings-table__date">{new Date(u.created_at).toLocaleDateString()}</td>
                     {isAdmin && (
-                      <td>
+                      <td className="users-actions-cell">
                         {u.id !== user.id && (
                           <button
                             className={`btn btn--sm ${u.active ? 'btn--ghost' : 'btn--primary'}`}
@@ -200,6 +221,20 @@ export default function UsersPage() {
                             {u.active ? 'Deactivate' : 'Activate'}
                           </button>
                         )}
+                        <button
+                          className="btn btn--sm btn--ghost"
+                          title="Unlock account (clears login lockout)"
+                          onClick={() => unlockUser(u)}
+                        >
+                          Unlock
+                        </button>
+                        <button
+                          className="btn btn--sm btn--ghost"
+                          title="Email a password reset link"
+                          onClick={() => sendReset(u)}
+                        >
+                          Send reset
+                        </button>
                       </td>
                     )}
                   </tr>

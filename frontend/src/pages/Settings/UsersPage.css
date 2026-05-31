@@ -76,5 +76,11 @@
   font-size: var(--text-base);
 }
 
+.users-actions-cell {
+  display: flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+}
+
 /* Re-use the settings table + pagination + search + perpage classes from Settings.css */
 /* They live in global context so they apply here too */

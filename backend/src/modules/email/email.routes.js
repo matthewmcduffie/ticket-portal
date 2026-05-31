@@ -5,8 +5,19 @@ import { requireRole } from '../../middleware/roles.js';
 
 const router = Router();
 
-// AgentMail calls this — no auth
-router.post('/webhook', handleWebhook);
+// Validate the shared webhook secret set in .env (WEBHOOK_SECRET).
+// Configure AgentMail to send: Authorization: Bearer <WEBHOOK_SECRET>
+function requireWebhookSecret(req, res, next) {
+  const secret = process.env.WEBHOOK_SECRET;
+  if (!secret) return next(); // secret not yet configured — allow through
+  const auth = req.headers['authorization'];
+  if (auth !== `Bearer ${secret}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+router.post('/webhook', requireWebhookSecret, handleWebhook);
 
 // Admin-only management endpoints
 router.get('/status',          requireAuth, requireRole('admin'), getStatus);

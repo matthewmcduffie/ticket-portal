@@ -160,6 +160,17 @@ export async function processIncomingMessage(message) {
 
   if (!senderEmail) return null;
 
+  // Reject senders not on the whitelist (if a whitelist is configured)
+  try {
+    const { isAllowed } = await import('../whitelist/whitelist.service.js');
+    if (!(await isAllowed(senderEmail))) {
+      console.log(`Rejected inbound email from unlisted sender: ${senderEmail}`);
+      return null;
+    }
+  } catch (err) {
+    console.error('Whitelist check failed:', err.message);
+  }
+
   // Skip automated senders and bounce notifications
   const fromLower    = senderEmail.toLowerCase();
   const subjectLower = subject.toLowerCase();

@@ -22,14 +22,24 @@ h4 { font-size: var(--text-lg);  font-weight: 600; }
 }
 
 /* ── Loading screen ──────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .loading-screen {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-  letter-spacing: 0.03em;
+}
+
+.loading-screen__spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--color-outline-variant);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 
 /* ── Shared form elements ────────────────────────────── */

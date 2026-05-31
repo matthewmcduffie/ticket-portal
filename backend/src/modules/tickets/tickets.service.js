@@ -25,6 +25,52 @@ async function logEvent(db, { ticketId, userId, eventType, detail }) {
   );
 }
 
+// ── Access control ─────────────────────────────────────────
+export async function canAccessTicket(ticketId, userId) {
+  const db = getDB();
+  const r = await db.query(
+    `SELECT 1 FROM tickets t
+     LEFT JOIN ticket_shares ts ON ts.ticket_id = t.id AND ts.shared_with = $2
+     WHERE t.id = $1 AND (t.created_by = $2 OR ts.shared_with IS NOT NULL)`,
+    [ticketId, userId]
+  );
+  return r.rows.length > 0;
+}
+
+// ── Sharing ────────────────────────────────────────────────
+export async function shareTicket(ticketId, targetUserId, sharedBy) {
+  const db = getDB();
+  const r = await db.query(
+    `INSERT INTO ticket_shares (ticket_id, shared_with, shared_by)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (ticket_id, shared_with) DO NOTHING
+     RETURNING *`,
+    [ticketId, targetUserId, sharedBy]
+  );
+  return r.rows[0] || null;
+}
+
+export async function unshareTicket(ticketId, targetUserId) {
+  const db = getDB();
+  await db.query(
+    'DELETE FROM ticket_shares WHERE ticket_id = $1 AND shared_with = $2',
+    [ticketId, targetUserId]
+  );
+}
+
+export async function getTicketShares(ticketId) {
+  const db = getDB();
+  const r = await db.query(
+    `SELECT u.id, u.name, u.email, ts.created_at AS shared_at
+     FROM ticket_shares ts
+     JOIN users u ON u.id = ts.shared_with
+     WHERE ts.ticket_id = $1
+     ORDER BY ts.created_at ASC`,
+    [ticketId]
+  );
+  return r.rows;
+}
+
 // ── Queries ────────────────────────────────────────────────
 export async function listTickets({ userId, role, page = 1, limit = 20, status, priority }) {
   const db = getDB();
@@ -37,16 +83,21 @@ export async function listTickets({ userId, role, page = 1, limit = 20, status, 
     FROM tickets t
     LEFT JOIN users u ON t.created_by = u.id
     LEFT JOIN users a ON t.assigned_to = a.id
+    WHERE t.deleted_at IS NULL
   `;
 
   if (role !== 'admin') {
     params.push(userId);
-    conditions.push(`t.created_by = $${params.length}`);
+    conditions.push(
+      `(t.created_by = $${params.length} OR EXISTS (
+         SELECT 1 FROM ticket_shares ts WHERE ts.ticket_id = t.id AND ts.shared_with = $${params.length}
+       ))`
+    );
   }
   if (status) { params.push(status);   conditions.push(`t.status = $${params.length}`); }
   if (priority) { params.push(priority); conditions.push(`t.priority = $${params.length}`); }
 
-  if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
+  if (conditions.length) query += ' AND ' + conditions.join(' AND ');
   query += ' ORDER BY t.created_at DESC';
   params.push(limit, offset);
   query += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
@@ -61,7 +112,7 @@ export async function getTicketById(id) {
      FROM tickets t
      LEFT JOIN users u ON t.created_by = u.id
      LEFT JOIN users a ON t.assigned_to = a.id
-     WHERE t.id = $1`,
+     WHERE t.id = $1 AND t.deleted_at IS NULL`,
     [id]
   );
   return r.rows[0] || null;
@@ -222,7 +273,7 @@ export async function addComment(ticketId, body, userId, userRole) {
   const db = getDB();
   const ticket = await getTicketById(ticketId);
   if (!ticket) return null;
-  if (userRole !== 'admin' && ticket.created_by !== userId) return null;
+  if (userRole !== 'admin' && !(await canAccessTicket(ticketId, userId))) return null;
 
   const u = await db.query('SELECT name FROM users WHERE id = $1', [userId]);
   const userName = u.rows[0]?.name ?? 'Unknown';
@@ -248,5 +299,9 @@ export async function addComment(ticketId, body, userId, userRole) {
 }
 
 export async function deleteTicket(id) {
-  await getDB().query('DELETE FROM tickets WHERE id = $1', [id]);
+  // Soft delete — preserves ticket_events audit trail and ticket_shares
+  await getDB().query(
+    'UPDATE tickets SET deleted_at = NOW() WHERE id = $1',
+    [id]
+  );
 }

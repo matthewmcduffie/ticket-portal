@@ -249,3 +249,103 @@
   gap: var(--space-sm);
   flex-wrap: wrap;
 }
+
+.drawer-size-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.drawer-section__hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+}
+
+.drawer-section__error {
+  font-size: var(--text-sm);
+  color: var(--color-error);
+  margin: 0 0 var(--space-sm);
+}
+
+/* ── Whitelist ────────────────────────────────────────────── */
+.whitelist-add-form {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.whitelist-add-form__type  { width: 110px; flex-shrink: 0; }
+.whitelist-add-form__value { flex: 1; min-width: 160px; }
+
+.whitelist-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: var(--space-sm);
+  vertical-align: middle;
+}
+
+.whitelist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.whitelist-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px var(--space-sm);
+  background: var(--color-surface-low);
+  border: var(--border);
+  border-radius: var(--radius-md);
+}
+
+.whitelist-item__badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.whitelist-item__badge--domain { background: #dae2fd; color: var(--color-primary); }
+.whitelist-item__badge--email  { background: #d1fae5; color: #065f46; }
+
+.whitelist-item__value {
+  flex: 1;
+  font-size: var(--text-sm);
+  font-family: monospace;
+  color: var(--color-text);
+}
+
+.whitelist-item__remove {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.whitelist-item__remove:hover { background: var(--color-error-container); color: var(--color-on-error-container); }
+.whitelist-item__remove .material-symbols-outlined { font-size: 16px; }

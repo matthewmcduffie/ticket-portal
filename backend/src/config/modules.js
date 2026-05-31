@@ -8,6 +8,8 @@ const MODULE_CONFIG = {
   discord: true,
   slack: true,
   analytics: true,
+  attachments: true,
+  whitelist: true,
 };
 
 export async function loadModules(app) {
