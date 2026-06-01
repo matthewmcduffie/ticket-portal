@@ -1,4 +1,4 @@
-# Tickets
+# Tickets (i'm working on a name)
 
 A self-hosted support ticket system built for small businesses and teams that need something that actually works without paying per seat for it.
 
