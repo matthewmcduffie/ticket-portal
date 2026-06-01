@@ -40,7 +40,7 @@ This app is built to handle sensitive communications safely:
 
 - A server with Docker and Docker Compose installed
 - A domain pointed at that server (the app is designed to run behind Caddy or another reverse proxy)
-- An [AgentMail](https://agentmail.to) account and inbox for email in and out
+- An [AgentMail](https://agentmail.to) account and inbox for email in and out (it's just what i use)
 - Optionally, a Discord webhook or a Slack incoming webhook for team notifications
 
 ---
