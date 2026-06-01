@@ -15,7 +15,6 @@ Most helpdesk software is built for large enterprise teams. If you just need a c
 - Tickets can be shared with other users who need visibility without full access
 - Notifications go out by email when ticket status changes, and to Discord or Slack when new tickets arrive
 - File attachments are supported on all tickets, with type and size limits you control
-- The whole thing runs in Docker, so you can move it to a different server quickly
 
 ---
 
