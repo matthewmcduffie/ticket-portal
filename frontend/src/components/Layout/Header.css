@@ -12,6 +12,32 @@
   flex-shrink: 0;
 }
 
+.header__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* Hamburger — hidden on desktop */
+.header__menu {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.header__menu:hover {
+  background-color: var(--color-surface-container);
+  color: var(--color-text);
+}
+
+.header__menu .material-symbols-outlined { font-size: 22px; }
+
 .header__back {
   display: flex;
   align-items: center;
@@ -41,5 +67,8 @@
 @media (max-width: 768px) {
   .header {
     padding: 0 var(--space-md);
+  }
+  .header__menu {
+    display: flex;
   }
 }

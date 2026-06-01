@@ -6,9 +6,10 @@ import './Login.css';
 
 export default function Login() {
   const { user, login } = useAuth();
-  const [form, setForm] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [form,     setForm]     = useState({ email: '', password: '' });
+  const [error,    setError]    = useState('');
+  const [loading,  setLoading]  = useState(false);
+  const [showPass, setShowPass] = useState(false);
 
   if (user) return <Navigate to="/dashboard" replace />;
 
@@ -69,16 +70,29 @@ export default function Login() {
 
           <div className="form-field">
             <label className="form-label" htmlFor="password">Password</label>
-            <input
-              id="password"
-              name="password"
-              className="form-input"
-              type="password"
-              value={form.password}
-              onChange={handleChange}
-              autoComplete="current-password"
-              required
-            />
+            <div className="login-form__password-wrap">
+              <input
+                id="password"
+                name="password"
+                className="form-input"
+                type={showPass ? 'text' : 'password'}
+                value={form.password}
+                onChange={handleChange}
+                autoComplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                className="login-form__eye"
+                onClick={() => setShowPass(v => !v)}
+                aria-label={showPass ? 'Hide password' : 'Show password'}
+                tabIndex={-1}
+              >
+                <span className="material-symbols-outlined">
+                  {showPass ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
+            </div>
           </div>
 
           <button

@@ -77,6 +77,33 @@
   font-size: var(--text-base);
 }
 
+.login-form__password-wrap {
+  position: relative;
+}
+
+.login-form__password-wrap .form-input {
+  padding-right: 2.5rem;
+}
+
+.login-form__eye {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+}
+
+.login-form__eye:hover { color: var(--color-text); }
+.login-form__eye .material-symbols-outlined { font-size: 20px; }
+
 .login-form__submit {
   width: 100%;
   padding: 10px;

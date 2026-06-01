@@ -6,6 +6,15 @@ import api from '../../services/api.js';
 import './Dashboard.css';
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+const STATUS_LABEL = {
+  open:             'Open',
+  in_progress:      'In Progress',
+  waiting_for_user: 'Waiting for User',
+  solved:           'Solved',
+  merged:           'Merged',
+};
+function statusLabel(s) { return STATUS_LABEL[s] ?? s.replace(/_/g, ' '); }
 const ACTIVITY_PER_PAGE_OPTIONS = [6, 25, 100];
 
 function isNew(t) {
@@ -43,7 +52,7 @@ function UserDashboard({ user }) {
 
   async function closeTicket(id, e) {
     e.stopPropagation();
-    await api.patch(`/tickets/${id}`, { status: 'closed' });
+    await api.patch(`/tickets/${id}`, { status: 'solved' });
     load();
   }
 
@@ -54,7 +63,7 @@ function UserDashboard({ user }) {
   const stats = {
     open:        tickets.filter(t => t.status === 'open').length,
     in_progress: tickets.filter(t => t.status === 'in_progress').length,
-    resolved:    tickets.filter(t => t.status === 'resolved').length,
+    solved:      tickets.filter(t => t.status === 'solved').length,
     total:       tickets.length,
   };
 
@@ -72,14 +81,14 @@ function UserDashboard({ user }) {
       <div className="dashboard__stats">
         <StatCard label="Open"        value={stats.open}        mod="warning" filter="open"        active={activeFilter} onClick={handleCardClick} />
         <StatCard label="In Progress" value={stats.in_progress} mod="info"    filter="in_progress" active={activeFilter} onClick={handleCardClick} />
-        <StatCard label="Resolved"    value={stats.resolved}    mod="success" filter="resolved"    active={activeFilter} onClick={handleCardClick} />
+        <StatCard label="Solved"      value={stats.solved}      mod="success" filter="solved"      active={activeFilter} onClick={handleCardClick} />
         <StatCard label="Total"       value={stats.total}       mod="default" filter={null}        active={activeFilter} onClick={handleCardClick} />
       </div>
 
       <div className="dashboard__panel">
         <div className="dashboard__panel-header">
           <h3>
-            {activeFilter ? `${activeFilter.replace('_', ' ')} tickets` : 'My Tickets'}
+            {activeFilter ? `${statusLabel(activeFilter)} tickets` : 'My Tickets'}
             {activeFilter && (
               <button className="dash-filter-clear" onClick={() => setActiveFilter(null)}>
                 <span className="material-symbols-outlined">close</span>
@@ -92,7 +101,7 @@ function UserDashboard({ user }) {
           <div className="dashboard__empty">Loading…</div>
         ) : displayed.length === 0 ? (
           <div className="dashboard__empty">
-            {activeFilter ? `No ${activeFilter.replace('_', ' ')} tickets.` : 'No tickets yet.'}
+            {activeFilter ? `No ${statusLabel(activeFilter)} tickets.` : 'No tickets yet.'}
           </div>
         ) : (
           <table className="dash-table">
@@ -114,13 +123,13 @@ function UserDashboard({ user }) {
                   </td>
                   <td>
                     <span className={`badge badge--status badge--${ticket.status}`}>
-                      {ticket.status.replace('_', ' ')}
+                      {statusLabel(ticket.status)}
                     </span>
                   </td>
                   <td><span className={`badge badge--${ticket.priority}`}>{ticket.priority}</span></td>
                   <td className="dash-table__date">{new Date(ticket.created_at).toLocaleDateString()}</td>
                   <td className="dash-table__actions" onClick={e => e.stopPropagation()}>
-                    {!['closed', 'resolved'].includes(ticket.status) && (
+                    {!['solved', 'merged'].includes(ticket.status) && (
                       <button className="btn btn--ghost btn--sm" onClick={e => closeTicket(ticket.id, e)}>Close</button>
                     )}
                   </td>
@@ -186,7 +195,7 @@ function AdminDashboard({ user }) {
     total:       tickets.length,
     open:        tickets.filter(t => t.status === 'open').length,
     in_progress: tickets.filter(t => t.status === 'in_progress').length,
-    resolved:    tickets.filter(t => t.status === 'resolved').length,
+    solved:      tickets.filter(t => t.status === 'solved').length,
   };
 
   const filteredTickets = activeFilter
@@ -210,7 +219,7 @@ function AdminDashboard({ user }) {
         <StatCard label="Total"       value={stats.total}       mod="default" filter={null}        active={activeFilter} onClick={handleCardClick} />
         <StatCard label="Open"        value={stats.open}        mod="warning" filter="open"        active={activeFilter} onClick={handleCardClick} />
         <StatCard label="In Progress" value={stats.in_progress} mod="info"    filter="in_progress" active={activeFilter} onClick={handleCardClick} />
-        <StatCard label="Resolved"    value={stats.resolved}    mod="success" filter="resolved"    active={activeFilter} onClick={handleCardClick} />
+        <StatCard label="Solved"      value={stats.solved}      mod="success" filter="solved"      active={activeFilter} onClick={handleCardClick} />
       </div>
 
       <div className="dashboard__two-col">
@@ -219,7 +228,7 @@ function AdminDashboard({ user }) {
         <div className="dashboard__panel">
           <div className="dashboard__panel-header">
             <h3>
-              {activeFilter ? `${activeFilter.replace('_', ' ')} tickets` : 'Recent Tickets'}
+              {activeFilter ? `${statusLabel(activeFilter)} tickets` : 'Recent Tickets'}
               {activeFilter && (
                 <button className="dash-filter-clear" onClick={() => setActiveFilter(null)}>
                   <span className="material-symbols-outlined">close</span>
@@ -232,7 +241,7 @@ function AdminDashboard({ user }) {
           {loading ? (
             <div className="dashboard__empty">Loading…</div>
           ) : filteredTickets.length === 0 ? (
-            <div className="dashboard__empty">No {activeFilter?.replace('_', ' ')} tickets.</div>
+            <div className="dashboard__empty">No {activeFilter ? statusLabel(activeFilter) : ''} tickets.</div>
           ) : (
             <table className="dash-table">
               <thead>
@@ -251,7 +260,7 @@ function AdminDashboard({ user }) {
                     </td>
                     <td>
                       <span className={`badge badge--status badge--${ticket.status}`}>
-                        {ticket.status.replace('_', ' ')}
+                        {statusLabel(ticket.status)}
                       </span>
                     </td>
                     <td><span className={`badge badge--${ticket.priority}`}>{ticket.priority}</span></td>

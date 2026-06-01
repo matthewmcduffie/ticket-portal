@@ -1,20 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar.jsx';
 import Header from './Header.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import './Layout.css';
 
-const COUNTDOWN_SECS = 120; // 2 minutes between warning and logout
+const COUNTDOWN_SECS = 120;
 
 export default function Layout() {
   const { warning, extendSession } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  // Close drawer on route change
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
   return (
     <div className="layout">
-      <Sidebar />
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
       <div className="layout__main">
-        <Header />
+        <Header onMenuClick={() => setSidebarOpen(o => !o)} />
         <main className="layout__content">
           <Outlet />
         </main>

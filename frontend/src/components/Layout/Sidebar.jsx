@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { to: '/analytics', label: 'Analytics', icon: 'bar_chart', adminOnly: true },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ open, onClose }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -20,6 +20,7 @@ export default function Sidebar() {
       className={({ isActive }) =>
         `sidebar__nav-item${isActive ? ' sidebar__nav-item--active' : ''}`
       }
+      onClick={onClose}
     >
       <span className="material-symbols-outlined sidebar__nav-icon">{item.icon}</span>
       <span>{item.label}</span>
@@ -27,7 +28,7 @@ export default function Sidebar() {
   );
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${open ? ' sidebar--open' : ''}`}>
       <div className="sidebar__brand">
         <div className="sidebar__brand-icon">
           <span className="material-symbols-outlined">confirmation_number</span>
@@ -39,7 +40,7 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar__cta">
-        <button className="sidebar__new-ticket" onClick={() => navigate('/tickets?new=1')}>
+        <button className="sidebar__new-ticket" onClick={() => { navigate('/tickets?new=1'); onClose?.(); }}>
           <span className="material-symbols-outlined">add</span>
           New Ticket
         </button>

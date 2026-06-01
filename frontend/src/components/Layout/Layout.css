@@ -74,11 +74,22 @@
   font-size: var(--text-lg);
 }
 
+.sidebar-overlay {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .layout__main {
     margin-left: 0;
   }
   .layout__content {
     padding: var(--space-md);
+  }
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 99;
   }
 }

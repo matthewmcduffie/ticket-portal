@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../services/api.js';
 import './TicketModal.css';
 
-const NEEDS_RESOLUTION_NOTE = ['resolved', 'closed'];
+const NEEDS_RESOLUTION_NOTE = ['solved'];
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
@@ -134,7 +134,7 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
   useEffect(() => {
     if (mergeOpen && isAdmin && isEdit) {
       api.get('/tickets?limit=200').then(r => {
-        setAllTickets(r.data.filter(t => t.id !== ticket.id && t.status !== 'closed'));
+        setAllTickets(r.data.filter(t => t.id !== ticket.id && t.status !== 'solved' && t.status !== 'merged'));
       }).catch(console.error);
     }
   }, [mergeOpen]);
@@ -295,8 +295,8 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
                     value={form.status} onChange={handleChange}>
                     <option value="open">Open</option>
                     <option value="in_progress">In Progress</option>
-                    <option value="resolved">Resolved</option>
-                    <option value="closed">Closed</option>
+                    <option value="waiting_for_user">Waiting for User</option>
+                    <option value="solved">Solved</option>
                   </select>
                 </div>
               )}

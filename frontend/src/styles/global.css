@@ -201,10 +201,13 @@ h4 { font-size: var(--text-lg);  font-weight: 600; }
   flex-shrink: 0;
 }
 
-.badge--open::before        { background-color: var(--color-primary); }
-.badge--in_progress::before { background-color: #f97316; }
-.badge--resolved::before    { background-color: #22c55e; }
-.badge--closed::before      { background-color: var(--color-outline-variant); }
+.badge--open::before             { background-color: var(--color-primary); }
+.badge--in_progress::before      { background-color: #f97316; }
+.badge--waiting_for_user::before { background-color: #a855f7; }
+.badge--solved::before           { background-color: #22c55e; }
+.badge--merged::before           { background-color: var(--color-outline-variant); }
+.badge--resolved::before         { background-color: #22c55e; }
+.badge--closed::before           { background-color: var(--color-outline-variant); }
 
 /* Priority chips */
 .badge--critical { background-color: var(--color-error-container);  color: var(--color-on-error-container); }

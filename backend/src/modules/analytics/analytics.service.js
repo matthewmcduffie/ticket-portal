@@ -9,14 +9,15 @@ export async function getOverview() {
   // ── Volume counts ──────────────────────────────────────
   const { rows: [vol] } = await db.query(`
     SELECT
-      COUNT(*)                                                          AS total,
-      COUNT(*) FILTER (WHERE status = 'open')                          AS open,
-      COUNT(*) FILTER (WHERE status = 'in_progress')                   AS in_progress,
-      COUNT(*) FILTER (WHERE status = 'resolved')                      AS resolved,
-      COUNT(*) FILTER (WHERE status = 'closed')                        AS closed,
-      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day')   AS today,
-      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')  AS this_week,
-      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS this_month
+      COUNT(*)                                                                AS total,
+      COUNT(*) FILTER (WHERE status = 'open')                              AS open,
+      COUNT(*) FILTER (WHERE status = 'in_progress')                       AS in_progress,
+      COUNT(*) FILTER (WHERE status = 'waiting_for_user')                  AS waiting_for_user,
+      COUNT(*) FILTER (WHERE status = 'solved')                            AS solved,
+      COUNT(*) FILTER (WHERE status = 'merged')                            AS merged,
+      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day')       AS today,
+      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')      AS this_week,
+      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')     AS this_month
     FROM tickets
   `);
 
@@ -30,9 +31,9 @@ export async function getOverview() {
         MIN(te.created_at) AS resolved_at
       FROM tickets t
       JOIN ticket_events te ON te.ticket_id = t.id
-      WHERE t.status IN ('resolved','closed')
+      WHERE t.status = 'solved'
         AND te.event_type = 'status_changed'
-        AND (te.detail ILIKE '%to "resolved"%' OR te.detail ILIKE '%to "closed"%')
+        AND te.detail ILIKE '%to "solved"%'
       GROUP BY t.id, t.priority, t.created_at
     )
     SELECT
@@ -95,7 +96,7 @@ export async function getOverview() {
         ELSE 4
       END                                                    AS sort_order
     FROM tickets
-    WHERE status IN ('open','in_progress')
+    WHERE status IN ('open','in_progress','waiting_for_user')
     GROUP BY range, sort_order
     ORDER BY sort_order
   `);
@@ -111,14 +112,15 @@ export async function getOverview() {
 
   return {
     volume: {
-      total:       +vol.total,
-      open:        +vol.open,
-      in_progress: +vol.in_progress,
-      resolved:    +vol.resolved,
-      closed:      +vol.closed,
-      today:       +vol.today,
-      this_week:   +vol.this_week,
-      this_month:  +vol.this_month,
+      total:            +vol.total,
+      open:             +vol.open,
+      in_progress:      +vol.in_progress,
+      waiting_for_user: +vol.waiting_for_user,
+      solved:           +vol.solved,
+      merged:           +vol.merged,
+      today:            +vol.today,
+      this_week:        +vol.this_week,
+      this_month:       +vol.this_month,
     },
     avg_resolution_hours: avgResolutionHours !== null
       ? Math.round(avgResolutionHours * 10) / 10 : null,

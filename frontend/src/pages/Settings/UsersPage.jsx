@@ -5,6 +5,151 @@ import './UsersPage.css';
 
 const PER_PAGE_OPTIONS = [10, 50, 100];
 
+// ── Edit modal ─────────────────────────────────────────────
+function EditUserModal({ target, currentUserId, onClose, onSaved }) {
+  const [form,        setForm]        = useState({ name: target.name, email: target.email, role: target.role });
+  const [saving,      setSaving]      = useState(false);
+  const [error,       setError]       = useState('');
+  const [confirmDel,  setConfirmDel]  = useState(false);
+  const [deleting,    setDeleting]    = useState(false);
+
+  const isSelf = target.id === currentUserId;
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setForm(f => ({ ...f, [name]: value }));
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await api.patch(`/users/${target.id}`, form);
+      onSaved(`${form.name} updated.`);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Save failed.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await api.delete(`/users/${target.id}`);
+      onSaved(`${target.name} deleted.`);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Delete failed.');
+      setDeleting(false);
+      setConfirmDel(false);
+    }
+  }
+
+  return (
+    <div className="umodal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="umodal" role="dialog" aria-modal="true" aria-label={`Edit ${target.name}`}>
+        <div className="umodal__header">
+          <h3 className="umodal__title">Edit user</h3>
+          <button className="umodal__close" onClick={onClose} aria-label="Close">
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <form className="umodal__body" onSubmit={handleSave}>
+          {error && <div className="users-alert users-alert--error">{error}</div>}
+
+          <div className="form-field">
+            <label className="form-label" htmlFor="eu-name">Full name</label>
+            <input
+              id="eu-name"
+              name="name"
+              className="form-input"
+              value={form.name}
+              onChange={handleChange}
+              required
+              autoFocus
+            />
+          </div>
+
+          <div className="form-field">
+            <label className="form-label" htmlFor="eu-email">Email address</label>
+            <input
+              id="eu-email"
+              name="email"
+              type="email"
+              className="form-input"
+              value={form.email}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="form-field">
+            <label className="form-label" htmlFor="eu-role">Role</label>
+            <select
+              id="eu-role"
+              name="role"
+              className="form-select"
+              value={form.role}
+              onChange={handleChange}
+              disabled={isSelf}
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+            {isSelf && (
+              <p className="umodal__hint">You cannot change your own role.</p>
+            )}
+          </div>
+
+          <div className="umodal__footer">
+            <div className="umodal__footer-left">
+              {!isSelf && !confirmDel && (
+                <button
+                  type="button"
+                  className="btn btn--sm btn--danger-ghost"
+                  onClick={() => setConfirmDel(true)}
+                >
+                  <span className="material-symbols-outlined">delete</span>
+                  Delete user
+                </button>
+              )}
+              {confirmDel && (
+                <div className="umodal__confirm-del">
+                  <span>Delete {target.name}?</span>
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--danger"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                  >
+                    {deleting ? 'Deleting…' : 'Yes, delete'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--ghost"
+                    onClick={() => setConfirmDel(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="umodal__footer-right">
+              <button type="button" className="btn btn--ghost" onClick={onClose}>Cancel</button>
+              <button type="submit" className="btn btn--primary" disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ──────────────────────────────────────────────
 export default function UsersPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -20,6 +165,7 @@ export default function UsersPage() {
   const [createError,   setCreateError]   = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
   const [actionMsg,     setActionMsg]     = useState('');
+  const [editTarget,    setEditTarget]    = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -71,20 +217,28 @@ export default function UsersPage() {
   async function unlockUser(u) {
     try {
       await api.post(`/users/${u.id}/unlock`);
-      setActionMsg(`${u.name}'s account has been unlocked.`);
-      setTimeout(() => setActionMsg(''), 4000);
+      flash(`${u.name}'s account has been unlocked.`);
     } catch (err) { console.error(err); }
   }
 
   async function sendReset(u) {
     try {
       await api.post(`/users/${u.id}/send-reset`);
-      setActionMsg(`Password reset email sent to ${u.email}.`);
-      setTimeout(() => setActionMsg(''), 4000);
+      flash(`Password reset email sent to ${u.email}.`);
     } catch (err) {
-      setActionMsg('Failed to send reset email. Check your AgentMail configuration.');
-      setTimeout(() => setActionMsg(''), 5000);
+      flash('Failed to send reset email. Check your AgentMail configuration.');
     }
+  }
+
+  function flash(msg, ms = 4000) {
+    setActionMsg(msg);
+    setTimeout(() => setActionMsg(''), ms);
+  }
+
+  function onEditSaved(msg) {
+    setEditTarget(null);
+    flash(msg);
+    load();
   }
 
   function getPageNumbers() {
@@ -100,6 +254,15 @@ export default function UsersPage() {
 
   return (
     <div className="users-page">
+
+      {editTarget && (
+        <EditUserModal
+          target={editTarget}
+          currentUserId={user.id}
+          onClose={() => setEditTarget(null)}
+          onSaved={onEditSaved}
+        />
+      )}
 
       {/* Create user */}
       <section className="users-section">
@@ -145,7 +308,7 @@ export default function UsersPage() {
 
       {/* User list */}
       <section className="users-section">
-        {actionMsg && <div className="users-alert users-alert--success">{actionMsg}</div>}
+        {actionMsg && <div className="users-alert users-alert--success" style={{ margin: '1rem 1.5rem 0' }}>{actionMsg}</div>}
         <div className="users-section__header">
           <h3>All Users</h3>
           <p className="users-section__desc">{users.length} total</p>
@@ -213,6 +376,14 @@ export default function UsersPage() {
                     <td className="settings-table__date">{new Date(u.created_at).toLocaleDateString()}</td>
                     {isAdmin && (
                       <td className="users-actions-cell">
+                        <button
+                          className="btn btn--sm btn--ghost"
+                          title="Edit name, email, or role"
+                          onClick={() => setEditTarget(u)}
+                        >
+                          <span className="material-symbols-outlined">edit</span>
+                          Edit
+                        </button>
                         {u.id !== user.id && (
                           <button
                             className={`btn btn--sm ${u.active ? 'btn--ghost' : 'btn--primary'}`}
@@ -223,14 +394,14 @@ export default function UsersPage() {
                         )}
                         <button
                           className="btn btn--sm btn--ghost"
-                          title="Unlock account (clears login lockout)"
+                          title="Unlock account"
                           onClick={() => unlockUser(u)}
                         >
                           Unlock
                         </button>
                         <button
                           className="btn btn--sm btn--ghost"
-                          title="Email a password reset link"
+                          title="Send password reset email"
                           onClick={() => sendReset(u)}
                         >
                           Send reset

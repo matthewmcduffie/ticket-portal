@@ -255,3 +255,23 @@
   color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
+
+@media (max-width: 600px) {
+  .tickets-search {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .tickets-toolbar__new {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Hide less critical columns on small screens */
+  .tickets-table th:nth-child(4),
+  .tickets-table td:nth-child(4),
+  .tickets-table th:nth-child(5),
+  .tickets-table td:nth-child(5) {
+    display: none;
+  }
+}

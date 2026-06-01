@@ -7,6 +7,14 @@ import './Tickets.css';
 
 const PER_PAGE_OPTIONS = [20, 50, 100];
 
+const STATUS_LABEL = {
+  open:             'Open',
+  in_progress:      'In Progress',
+  waiting_for_user: 'Waiting for User',
+  solved:           'Solved',
+  merged:           'Merged',
+};
+
 export default function Tickets() {
   const { user } = useAuth();
   const [tickets,  setTickets]  = useState([]);
@@ -100,8 +108,9 @@ export default function Tickets() {
           <option value="">Status</option>
           <option value="open">Open</option>
           <option value="in_progress">In Progress</option>
-          <option value="resolved">Resolved</option>
-          <option value="closed">Closed</option>
+          <option value="waiting_for_user">Waiting for User</option>
+          <option value="solved">Solved</option>
+          <option value="merged">Merged</option>
         </select>
 
         {/* Priority */}
@@ -187,7 +196,7 @@ export default function Tickets() {
                     <td className="tickets-table__title">{ticket.title}</td>
                     <td>
                       <span className={`badge badge--status badge--${ticket.status}`}>
-                        {ticket.status.replace('_', ' ')}
+                        {STATUS_LABEL[ticket.status] ?? ticket.status}
                       </span>
                     </td>
                     <td>

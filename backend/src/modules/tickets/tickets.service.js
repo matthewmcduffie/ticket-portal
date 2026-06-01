@@ -197,7 +197,7 @@ export async function updateTicket(id, updates, userRole, userId) {
   if (updates.status && updates.status !== ticket.status) {
     await logEvent(db, {
       ticketId: id, userId, eventType: 'status_changed',
-      detail: `Status changed from "${ticket.status.replace('_', ' ')}" to "${updates.status.replace('_', ' ')}"`,
+      detail: `Status changed from "${ticket.status.replace(/_/g, ' ')}" to "${updates.status.replace(/_/g, ' ')}"`,
     });
     tryNotify(async () => {
       const { notifyStatusChanged } = await import('../email/email.service.js');
@@ -237,9 +237,8 @@ export async function mergeTickets(primaryId, ticketIds, userId) {
     const t = await getTicketById(tid);
     if (!t) continue;
 
-    // Close the merged ticket and point it at the primary
     await db.query(
-      `UPDATE tickets SET status = 'closed', merged_into = $1, updated_at = NOW() WHERE id = $2`,
+      `UPDATE tickets SET status = 'merged', merged_into = $1, updated_at = NOW() WHERE id = $2`,
       [primaryId, tid]
     );
 
