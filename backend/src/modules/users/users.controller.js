@@ -24,11 +24,11 @@ export async function getUser(req, res) {
 
 export async function createUser(req, res) {
   try {
-    const { email, name, password, role } = req.body;
+    const { email, name, password, role, can_view_bug_reports } = req.body;
     if (!email || !name || !password) {
       return res.status(400).json({ error: 'Email, name, and password required' });
     }
-    const user = await svc.createUser({ email, name, password, role });
+    const user = await svc.createUser({ email, name, password, role, can_view_bug_reports });
     res.status(201).json(user);
   } catch (err) {
     if (err.code === 'WEAK_PASSWORD') return res.status(400).json({ error: err.message });

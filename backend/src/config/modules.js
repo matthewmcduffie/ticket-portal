@@ -10,6 +10,7 @@ const MODULE_CONFIG = {
   analytics: true,
   attachments: true,
   whitelist: true,
+  bugtracker: true,
 };
 
 export async function loadModules(app) {

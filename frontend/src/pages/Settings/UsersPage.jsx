@@ -7,7 +7,12 @@ const PER_PAGE_OPTIONS = [10, 50, 100];
 
 // ── Edit modal ─────────────────────────────────────────────
 function EditUserModal({ target, currentUserId, onClose, onSaved }) {
-  const [form,        setForm]        = useState({ name: target.name, email: target.email, role: target.role });
+  const [form,        setForm]        = useState({
+    name: target.name,
+    email: target.email,
+    role: target.role,
+    can_view_bug_reports: !!target.can_view_bug_reports,
+  });
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState('');
   const [confirmDel,  setConfirmDel]  = useState(false);
@@ -16,8 +21,8 @@ function EditUserModal({ target, currentUserId, onClose, onSaved }) {
   const isSelf = target.id === currentUserId;
 
   function handleChange(e) {
-    const { name, value } = e.target;
-    setForm(f => ({ ...f, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setForm(f => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
   }
 
   async function handleSave(e) {
@@ -103,6 +108,20 @@ function EditUserModal({ target, currentUserId, onClose, onSaved }) {
             )}
           </div>
 
+          <label className="drawer-toggle">
+            <input
+              type="checkbox"
+              name="can_view_bug_reports"
+              className="drawer-toggle__check"
+              checked={form.can_view_bug_reports}
+              onChange={handleChange}
+            />
+            <div className="drawer-toggle__info">
+              <div className="drawer-toggle__label">Can view bug reports</div>
+              <div className="drawer-toggle__desc">Shows the Bug Tracker and allows access to bug report records.</div>
+            </div>
+          </label>
+
           <div className="umodal__footer">
             <div className="umodal__footer-left">
               {!isSelf && !confirmDel && (
@@ -160,7 +179,7 @@ export default function UsersPage() {
   const [perPage,   setPerPage]   = useState(10);
   const [page,      setPage]      = useState(1);
 
-  const [form,          setForm]          = useState({ name: '', email: '', password: '', role: 'user' });
+  const [form,          setForm]          = useState({ name: '', email: '', password: '', role: 'user', can_view_bug_reports: false });
   const [creating,      setCreating]      = useState(false);
   const [createError,   setCreateError]   = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
@@ -186,8 +205,8 @@ export default function UsersPage() {
   const pageUsers  = filtered.slice((page - 1) * perPage, page * perPage);
 
   function handleChange(e) {
-    const { name, value } = e.target;
-    setForm(f => ({ ...f, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setForm(f => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
   }
 
   async function handleCreate(e) {
@@ -197,7 +216,7 @@ export default function UsersPage() {
     setCreating(true);
     try {
       await api.post('/users', form);
-      setForm({ name: '', email: '', password: '', role: 'user' });
+      setForm({ name: '', email: '', password: '', role: 'user', can_view_bug_reports: false });
       setCreateSuccess('User created successfully.');
       load();
     } catch (err) {
@@ -297,6 +316,20 @@ export default function UsersPage() {
             </div>
           </div>
 
+          <label className="drawer-toggle">
+            <input
+              type="checkbox"
+              name="can_view_bug_reports"
+              className="drawer-toggle__check"
+              checked={form.can_view_bug_reports}
+              onChange={handleChange}
+            />
+            <div className="drawer-toggle__info">
+              <div className="drawer-toggle__label">Allow bug report access</div>
+              <div className="drawer-toggle__desc">Users with this permission can view the Bug Tracker and any bug reports shared with them or created by them.</div>
+            </div>
+          </label>
+
           <div className="users-create-form__footer">
             <button className="btn btn--primary" type="submit" disabled={creating}>
               <span className="material-symbols-outlined">person_add</span>
@@ -350,6 +383,7 @@ export default function UsersPage() {
                 <tr>
                   <th>User</th>
                   <th>Role</th>
+                  <th>Bug Access</th>
                   <th>Status</th>
                   <th>Created</th>
                   {isAdmin && <th></th>}
@@ -368,6 +402,7 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td><span className={`badge role-badge role-badge--${u.role}`}>{u.role}</span></td>
+                    <td>{u.can_view_bug_reports ? 'Allowed' : 'No access'}</td>
                     <td>
                       <span className={`badge badge--status badge--${u.active ? 'resolved' : 'closed'}`}>
                         {u.active ? 'Active' : 'Inactive'}

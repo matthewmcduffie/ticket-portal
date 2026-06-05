@@ -15,8 +15,10 @@ const STATUS_LABEL = {
   merged:           'Merged',
 };
 
-export default function Tickets() {
+export default function Tickets({ issueType = 'ticket' }) {
   const { user } = useAuth();
+  const isBugPage = issueType === 'bug';
+  const canViewBugs = user?.role === 'admin' || user?.can_view_bug_reports;
   const [tickets,  setTickets]  = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [selected, setSelected] = useState(null);
@@ -40,11 +42,11 @@ export default function Tickets() {
   // Load all tickets client-side, filter/page locally
   const load = useCallback((showSpinner = false) => {
     if (showSpinner) setLoading(true);
-    api.get('/tickets?limit=500')
+    api.get(`/tickets?limit=500&issue_type=${issueType}`)
       .then(r => setTickets(r.data))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [issueType]);
 
   useEffect(() => {
     load(true);
@@ -105,7 +107,7 @@ export default function Tickets() {
           value={status}
           onChange={e => setStatus(e.target.value)}
         >
-          <option value="">Status</option>
+          <option value="">{isBugPage ? 'Bug status' : 'Status'}</option>
           <option value="open">Open</option>
           <option value="in_progress">In Progress</option>
           <option value="waiting_for_user">Waiting for User</option>
@@ -119,7 +121,7 @@ export default function Tickets() {
           value={priority}
           onChange={e => setPriority(e.target.value)}
         >
-          <option value="">Priority</option>
+          <option value="">{isBugPage ? 'Bug priority' : 'Priority'}</option>
           <option value="critical">Critical</option>
           <option value="high">High</option>
           <option value="medium">Medium</option>
@@ -154,7 +156,7 @@ export default function Tickets() {
         {user?.role === 'admin' && (
           <button className="btn btn--primary tickets-toolbar__new" onClick={() => setShowNew(true)}>
             <span className="material-symbols-outlined">add</span>
-            New Ticket
+            {isBugPage ? 'New Bug Report' : 'New Ticket'}
           </button>
         )}
       </div>
@@ -164,9 +166,11 @@ export default function Tickets() {
         <div className="tickets-state">Loading…</div>
       ) : filtered.length === 0 ? (
         <div className="tickets-state tickets-state--empty">
-          <p>{hasActiveFilters ? 'No tickets match your filters.' : 'No tickets yet.'}</p>
+          <p>{hasActiveFilters ? `No ${isBugPage ? 'bug reports' : 'tickets'} match your filters.` : `No ${isBugPage ? 'bug reports' : 'tickets'} yet.`}</p>
           {!hasActiveFilters && (
-            <button className="btn btn--primary" onClick={() => setShowNew(true)}>Create first ticket</button>
+            <button className="btn btn--primary" onClick={() => setShowNew(true)}>
+              {isBugPage ? 'Create first bug report' : 'Create first ticket'}
+            </button>
           )}
           {hasActiveFilters && (
             <button className="btn btn--ghost" onClick={() => { setSearch(''); setStatus(''); setPriority(''); }}>
@@ -181,7 +185,7 @@ export default function Tickets() {
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Title</th>
+                  <th>{isBugPage ? 'Bug' : 'Title'}</th>
                   <th>Status</th>
                   <th>Priority</th>
                   <th>Created by</th>
@@ -193,7 +197,12 @@ export default function Tickets() {
                 {paged.map(ticket => (
                   <tr key={ticket.id} onClick={() => setSelected(ticket)}>
                     <td className="tickets-table__id">#{ticket.id.slice(0, 6).toUpperCase()}</td>
-                    <td className="tickets-table__title">{ticket.title}</td>
+                    <td className="tickets-table__title">
+                      {!isBugPage && ticket.issue_type === 'bug' && (
+                        <span className="badge badge--status badge--in_progress" style={{ marginRight: 8 }}>Bug</span>
+                      )}
+                      {ticket.title}
+                    </td>
                     <td>
                       <span className={`badge badge--status badge--${ticket.status}`}>
                         {STATUS_LABEL[ticket.status] ?? ticket.status}
@@ -214,7 +223,7 @@ export default function Tickets() {
           {/* ── Pagination ── */}
           <div className="tickets-pagination">
             <span className="tickets-pagination__info">
-              {filtered.length} ticket{filtered.length !== 1 ? 's' : ''}
+              {filtered.length} {isBugPage ? 'bug report' : 'ticket'}{filtered.length !== 1 ? 's' : ''}
               {hasActiveFilters ? ' match' : ''}
               {totalPages > 1 && ` — showing ${(page - 1) * perPage + 1}–${Math.min(page * perPage, filtered.length)}`}
             </span>
@@ -257,7 +266,14 @@ export default function Tickets() {
         <TicketModal ticket={selected} onClose={() => setSelected(null)} onSaved={onSaved} />
       )}
       {showNew && (
-        <TicketModal ticket={null} onClose={() => setShowNew(false)} onSaved={onSaved} />
+        <TicketModal
+          ticket={null}
+          onClose={() => setShowNew(false)}
+          onSaved={onSaved}
+          defaultIssueType={issueType}
+          fixedIssueType={isBugPage ? 'bug' : null}
+          allowBugReports={canViewBugs}
+        />
       )}
     </div>
   );

@@ -1,126 +1,147 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api.js';
+import Drawer from '../../components/Drawer/Drawer.jsx';
+import TicketModal from '../Tickets/TicketModal.jsx';
 import './Analytics.css';
 
-const PRIORITY_ORDER  = ['critical', 'high', 'medium', 'low'];
-const PRIORITY_COLOR  = { critical: '#E53E3E', high: '#ED8936', medium: '#ECC94B', low: '#48BB78' };
+const PRIORITY_ORDER = ['critical', 'high', 'medium', 'low'];
+const OPEN_STATUSES = new Set(['open', 'in_progress', 'waiting_for_user']);
 
 function fmtHours(h) {
-  if (h === null || h === undefined) return '—';
-  if (h < 1)   return `${Math.round(h * 60)} min`;
-  if (h < 24)  return `${h.toFixed(1)} hrs`;
+  if (h === null || h === undefined) return '-';
+  if (h < 1) return `${Math.round(h * 60)} min`;
+  if (h < 24) return `${h.toFixed(1)} hrs`;
   return `${(h / 24).toFixed(1)} days`;
 }
 
 function fmtSlaTarget(h) {
-  if (h < 24)  return `${h}h`;
+  if (h < 24) return `${h}h`;
   return `${h / 24}d`;
 }
 
 export default function Analytics() {
-  const [data,    setData]    = useState(null);
+  const [data, setData] = useState(null);
+  const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(null);
+  const [error, setError] = useState(null);
+  const [activeAgeRange, setActiveAgeRange] = useState(null);
+  const [selectedIssue, setSelectedIssue] = useState(null);
 
   useEffect(() => {
-    api.get('/analytics/overview')
-      .then(r => setData(r.data))
+    Promise.all([
+      api.get('/analytics/overview'),
+      api.get('/tickets?limit=500'),
+    ])
+      .then(([analyticsRes, issuesRes]) => {
+        setData(analyticsRes.data);
+        setIssues(issuesRes.data);
+      })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="analytics-state">Loading analytics…</div>;
-  if (error)   return <div className="analytics-state analytics-state--error">Failed to load: {error}</div>;
+  const volume = data?.volume;
+  const avgResolutionHours = data?.avg_resolution_hours;
+  const overallSlaRate = data?.overall_sla_rate;
+  const byPriority = data?.by_priority || [];
+  const dailyVolume = data?.daily_volume || [];
+  const aging = data?.aging || [];
 
-  const { volume, avg_resolution_hours, overall_sla_rate, by_priority, daily_volume, aging } = data;
+  const maxDaily = Math.max(...dailyVolume.map(d => d.count), 1);
+  const agingTotal = aging.reduce((sum, item) => sum + item.count, 0) || 1;
 
-  // Daily chart max
-  const maxDaily = Math.max(...daily_volume.map(d => d.count), 1);
-
-  // Aging total for bar widths
-  const agingTotal = aging.reduce((s, a) => s + a.count, 0) || 1;
-
-  // Merge by_priority into sorted order, filling missing priorities
-  const priorityMap = Object.fromEntries(by_priority.map(r => [r.priority, r]));
-  const priorityRows = PRIORITY_ORDER.map(p => priorityMap[p] || {
-    priority: p, total: 0, resolved: 0, avg_hours: null, within_sla: 0,
-    sla_target_hours: { critical: 4, high: 24, medium: 72, low: 168 }[p], sla_rate: null,
+  const priorityMap = Object.fromEntries(byPriority.map(row => [row.priority, row]));
+  const priorityRows = PRIORITY_ORDER.map(priority => priorityMap[priority] || {
+    priority,
+    total: 0,
+    resolved: 0,
+    avg_hours: null,
+    within_sla: 0,
+    sla_target_hours: { critical: 4, high: 24, medium: 72, low: 168 }[priority],
+    sla_rate: null,
   });
+
+  const filteredAgeIssues = useMemo(() => {
+    if (!activeAgeRange) return [];
+    return issues
+      .filter(issue => OPEN_STATUSES.has(issue.status))
+      .filter(issue => matchesAgeRange(issue.created_at, activeAgeRange));
+  }, [issues, activeAgeRange]);
+
+  if (loading) return <div className="analytics-state">Loading analytics...</div>;
+  if (error) return <div className="analytics-state analytics-state--error">Failed to load: {error}</div>;
 
   return (
     <div className="analytics">
-
-      {/* ── Top KPIs ── */}
       <div className="analytics__kpis">
-        <KpiCard label="Total Tickets"    value={volume.total}      sub={`${volume.today} today · ${volume.this_week} this week`} />
-        <KpiCard label="Open"             value={volume.open}       sub={`${volume.in_progress} in progress`} accent="warning" />
-        <KpiCard label="Avg Resolution"   value={fmtHours(avg_resolution_hours)} sub="across resolved tickets" />
+        <KpiCard label="Total Issues" value={volume.total} sub={`${volume.today} today · ${volume.this_week} this week`} />
+        <KpiCard label="Open" value={volume.open} sub={`${volume.in_progress} in progress`} accent="warning" />
+        <KpiCard label="Avg Resolution" value={fmtHours(avgResolutionHours)} sub="across solved issues" />
         <KpiCard
           label="SLA Compliance"
-          value={overall_sla_rate !== null ? `${overall_sla_rate}%` : '—'}
-          sub="tickets resolved within target"
-          accent={overall_sla_rate >= 80 ? 'success' : overall_sla_rate >= 60 ? 'warning' : 'danger'}
+          value={overallSlaRate !== null ? `${overallSlaRate}%` : '-'}
+          sub="solved issues within target"
+          accent={overallSlaRate >= 80 ? 'success' : overallSlaRate >= 60 ? 'warning' : 'danger'}
         />
       </div>
 
-      {/* ── Volume + Aging ── */}
       <div className="analytics__two-col">
-
-        {/* Daily volume bar chart */}
         <div className="analytics__panel">
           <div className="analytics__panel-header">
             <h3>Ticket Volume</h3>
             <span className="analytics__panel-sub">Last 14 days</span>
           </div>
           <div className="bar-chart">
-            {daily_volume.map(d => (
-              <div key={d.date} className="bar-chart__col">
+            {dailyVolume.map(day => (
+              <div key={day.date} className="bar-chart__col">
                 <div className="bar-chart__bar-wrap">
                   <div
                     className="bar-chart__bar"
-                    style={{ height: `${Math.max((d.count / maxDaily) * 100, d.count > 0 ? 4 : 0)}%` }}
-                    title={`${d.count} ticket${d.count !== 1 ? 's' : ''}`}
+                    style={{ height: `${Math.max((day.count / maxDaily) * 100, day.count > 0 ? 4 : 0)}%` }}
+                    title={`${day.count} issue${day.count !== 1 ? 's' : ''}`}
                   >
-                    {d.count > 0 && <span className="bar-chart__tip">{d.count}</span>}
+                    {day.count > 0 && <span className="bar-chart__tip">{day.count}</span>}
                   </div>
                 </div>
                 <span className="bar-chart__label">
-                  {new Date(d.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}
+                  {new Date(`${day.date}T12:00:00`).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}
                 </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Open ticket aging */}
         <div className="analytics__panel">
           <div className="analytics__panel-header">
-            <h3>Open Ticket Age</h3>
+            <h3>Ticket and Bug Age</h3>
             <span className="analytics__panel-sub">{volume.open + volume.in_progress} unresolved</span>
           </div>
           {aging.length === 0 ? (
-            <div className="analytics__empty">No open tickets.</div>
+            <div className="analytics__empty">No open issues.</div>
           ) : (
             <div className="aging-chart">
-              {aging.map(a => (
-                <div key={a.range} className="aging-row">
-                  <div className="aging-row__label">{a.range}</div>
+              {aging.map(item => (
+                <button
+                  key={item.range}
+                  type="button"
+                  className="aging-row aging-row--button"
+                  onClick={() => setActiveAgeRange(item.range)}
+                >
+                  <div className="aging-row__label">{item.range}</div>
                   <div className="aging-row__track">
                     <div
                       className="aging-row__fill"
-                      style={{ width: `${Math.max((a.count / agingTotal) * 100, 2)}%` }}
+                      style={{ width: `${Math.max((item.count / agingTotal) * 100, 2)}%` }}
                     />
                   </div>
-                  <div className="aging-row__count">{a.count}</div>
-                </div>
+                  <div className="aging-row__count">{item.count}</div>
+                </button>
               ))}
             </div>
           )}
         </div>
-
       </div>
 
-      {/* ── Priority breakdown table ── */}
       <div className="analytics__panel">
         <div className="analytics__panel-header">
           <h3>Resolution by Priority</h3>
@@ -140,28 +161,28 @@ export default function Analytics() {
               </tr>
             </thead>
             <tbody>
-              {priorityRows.map(r => (
-                <tr key={r.priority}>
+              {priorityRows.map(row => (
+                <tr key={row.priority}>
                   <td>
-                    <span className={`badge badge--${r.priority}`}>{r.priority}</span>
+                    <span className={`badge badge--${row.priority}`}>{row.priority}</span>
                   </td>
-                  <td className="analytics-table__num">{r.total}</td>
-                  <td className="analytics-table__num">{r.resolved}</td>
-                  <td className="analytics-table__num">{fmtHours(r.avg_hours)}</td>
-                  <td className="analytics-table__num">{fmtSlaTarget(r.sla_target_hours)}</td>
+                  <td className="analytics-table__num">{row.total}</td>
+                  <td className="analytics-table__num">{row.resolved}</td>
+                  <td className="analytics-table__num">{fmtHours(row.avg_hours)}</td>
+                  <td className="analytics-table__num">{fmtSlaTarget(row.sla_target_hours)}</td>
                   <td className="analytics-table__num">
-                    {r.sla_rate !== null ? (
-                      <span className={`sla-rate ${r.sla_rate >= 80 ? 'sla-rate--good' : r.sla_rate >= 60 ? 'sla-rate--warn' : 'sla-rate--bad'}`}>
-                        {r.sla_rate}%
+                    {row.sla_rate !== null ? (
+                      <span className={`sla-rate ${row.sla_rate >= 80 ? 'sla-rate--good' : row.sla_rate >= 60 ? 'sla-rate--warn' : 'sla-rate--bad'}`}>
+                        {row.sla_rate}%
                       </span>
-                    ) : '—'}
+                    ) : '-'}
                   </td>
                   <td>
-                    {r.resolved > 0 ? (
+                    {row.resolved > 0 ? (
                       <div className="sla-bar-track">
                         <div
-                          className={`sla-bar-fill ${r.sla_rate >= 80 ? 'sla-bar-fill--good' : r.sla_rate >= 60 ? 'sla-bar-fill--warn' : 'sla-bar-fill--bad'}`}
-                          style={{ width: `${r.sla_rate ?? 0}%` }}
+                          className={`sla-bar-fill ${row.sla_rate >= 80 ? 'sla-bar-fill--good' : row.sla_rate >= 60 ? 'sla-bar-fill--warn' : 'sla-bar-fill--bad'}`}
+                          style={{ width: `${row.sla_rate ?? 0}%` }}
                         />
                       </div>
                     ) : <span className="analytics-table__na">No data</span>}
@@ -173,30 +194,83 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* ── Volume summary strip ── */}
       <div className="analytics__panel">
         <div className="analytics__panel-header">
           <h3>Volume Breakdown</h3>
+          <span className="analytics__panel-sub">Real counts from current issue records</span>
         </div>
         <div className="volume-strip">
           {[
-            { label: 'Open',        value: volume.open,        color: '#d97706' },
-            { label: 'In Progress', value: volume.in_progress, color: '#0284c7' },
-            { label: 'Resolved',    value: volume.resolved,    color: '#16a34a' },
-            { label: 'Closed',      value: volume.closed,      color: '#64748b' },
-          ].map(s => (
-            <div key={s.label} className="volume-strip__item">
-              <div className="volume-strip__bar" style={{ backgroundColor: s.color, width: `${Math.max((s.value / (volume.total || 1)) * 100, 2)}%` }} />
-              <div className="volume-strip__label">{s.label}</div>
-              <div className="volume-strip__count">{s.value}</div>
+            { label: 'Tickets', value: volume.tickets, color: '#1d4ed8' },
+            { label: 'Bug Reports', value: volume.bugs, color: '#b91c1c' },
+          ].map(item => (
+            <div key={item.label} className="volume-strip__item">
+              <div className="volume-strip__bar" style={{ backgroundColor: item.color, width: `${Math.max((item.value / (volume.total || 1)) * 100, 2)}%` }} />
+              <div className="volume-strip__label">{item.label}</div>
+              <div className="volume-strip__count">{item.value}</div>
               <div className="volume-strip__pct">
-                {volume.total > 0 ? `${Math.round((s.value / volume.total) * 100)}%` : '—'}
+                {volume.total > 0 ? `${Math.round((item.value / volume.total) * 100)}%` : '-'}
               </div>
             </div>
           ))}
         </div>
       </div>
 
+      <Drawer
+        open={!!activeAgeRange}
+        onClose={() => setActiveAgeRange(null)}
+        title={activeAgeRange ? `${activeAgeRange} Issues` : 'Issue Age'}
+      >
+        {activeAgeRange && (
+          <div className="analytics-drawer">
+            <p className="analytics-drawer__intro">
+              {filteredAgeIssues.length} open issue{filteredAgeIssues.length !== 1 ? 's' : ''} in this age range.
+            </p>
+            {filteredAgeIssues.length === 0 ? (
+              <div className="analytics__empty">No issues match this age range.</div>
+            ) : (
+              <div className="analytics-drawer__list">
+                {filteredAgeIssues.map(issue => (
+                  <button
+                    key={issue.id}
+                    type="button"
+                    className="analytics-drawer__item"
+                    onClick={() => {
+                      setActiveAgeRange(null);
+                      setSelectedIssue(issue);
+                    }}
+                  >
+                    <div className="analytics-drawer__item-main">
+                      <div className="analytics-drawer__item-title">
+                        {issue.issue_type === 'bug' ? 'Bug Report' : 'Ticket'}: {issue.title}
+                      </div>
+                      <div className="analytics-drawer__item-meta">
+                        <span>#{issue.id.slice(0, 6).toUpperCase()}</span>
+                        <span>·</span>
+                        <span>{issue.creator_name}</span>
+                        <span>·</span>
+                        <span>{new Date(issue.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <div className="analytics-drawer__item-side">
+                      <span className={`badge badge--status badge--${issue.status}`}>{issue.status.replace(/_/g, ' ')}</span>
+                      <span className={`badge badge--${issue.priority}`}>{issue.priority}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Drawer>
+
+      {selectedIssue && (
+        <TicketModal
+          ticket={selectedIssue}
+          onClose={() => setSelectedIssue(null)}
+          onSaved={() => setSelectedIssue(null)}
+        />
+      )}
     </div>
   );
 }
@@ -209,4 +283,13 @@ function KpiCard({ label, value, sub, accent }) {
       {sub && <div className="kpi-card__sub">{sub}</div>}
     </div>
   );
+}
+
+function matchesAgeRange(createdAt, range) {
+  const ageMs = Date.now() - new Date(createdAt).getTime();
+  const oneDay = 24 * 60 * 60 * 1000;
+  if (range === 'Under 1 day') return ageMs < oneDay;
+  if (range === '1–3 days') return ageMs >= oneDay && ageMs < 3 * oneDay;
+  if (range === '3–7 days') return ageMs >= 3 * oneDay && ageMs < 7 * oneDay;
+  return ageMs >= 7 * oneDay;
 }
