@@ -14,6 +14,9 @@ const BACK_ROUTES = {
   '/settings/users': '/settings',
 };
 
+const APP_VERSION = 'Beta 0.1.1';
+const PROJECT_URL = 'https://github.com/matthewmcduffie/ticket-portal';
+
 export default function Header({ onMenuClick }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -32,6 +35,13 @@ export default function Header({ onMenuClick }) {
           </button>
         )}
         <h1 className="header__title">{title}</h1>
+      </div>
+      <div className="header__meta-card" aria-label="Application information">
+        <span className="header__version">{APP_VERSION}</span>
+        <a className="header__project-link" href={PROJECT_URL} target="_blank" rel="noreferrer">
+          matthewmcduffie/ticket-portal
+        </a>
+        <span className="header__copyright">Copyright 2026 Matthew McDuffie</span>
       </div>
     </header>
   );

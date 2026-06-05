@@ -16,6 +16,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+  min-width: 0;
 }
 
 /* Hamburger — hidden on desktop */
@@ -62,6 +63,49 @@
   font-size: var(--text-xl);
   font-weight: 600;
   color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header__meta-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  max-width: min(38vw, 240px);
+  padding: 6px 8px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-low);
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.15;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.header__version {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.header__project-link,
+.header__copyright {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header__project-link {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.header__project-link:hover {
+  text-decoration: underline;
 }
 
 @media (max-width: 768px) {
@@ -70,5 +114,13 @@
   }
   .header__menu {
     display: flex;
+  }
+  .header__meta-card {
+    max-width: 42vw;
+    padding: 5px 6px;
+    font-size: 9px;
+  }
+  .header__title {
+    font-size: var(--text-lg);
   }
 }
