@@ -12,6 +12,7 @@ export default function Settings() {
   const [slackOk,         setSlackOk]         = useState(false);
   const [uploadsEnabled,  setUploadsEnabled]  = useState(true);
   const [whitelistCount,  setWhitelistCount]  = useState(null);
+  const [softwareCount,   setSoftwareCount]   = useState(null);
 
   useEffect(() => {
     api.get('/users').then(r => setUserCount(r.data.length)).catch(() => {});
@@ -19,6 +20,7 @@ export default function Settings() {
     api.get('/slack').then(r => setSlackOk(!!r.data.slack_webhook_url)).catch(() => {});
     api.get('/attachments/config').then(r => setUploadsEnabled(r.data.enabled)).catch(() => {});
     api.get('/whitelist').then(r => setWhitelistCount(r.data.length)).catch(() => {});
+    api.get('/bugtracker/software').then(r => setSoftwareCount(r.data.length)).catch(() => {});
   }, []);
 
   const CARDS = [
@@ -30,6 +32,15 @@ export default function Settings() {
       description: 'Create accounts, assign roles, and manage team access.',
       meta: userCount !== null ? `${userCount} user${userCount !== 1 ? 's' : ''}` : null,
       action: 'page',
+    },
+    {
+      id: 'bugtracker',
+      icon: 'bug_report',
+      iconColor: '#b91c1c',
+      title: 'Bug Tracker',
+      description: 'Manage the software catalog used when filing bug reports.',
+      meta: softwareCount !== null ? `${softwareCount} software entr${softwareCount === 1 ? 'y' : 'ies'}` : null,
+      action: 'drawer',
     },
     {
       id: 'app',
@@ -141,6 +152,10 @@ export default function Settings() {
 
       <Drawer open={activeDrawer === 'whitelist'} onClose={() => setActiveDrawer(null)} title="Email Whitelist">
         <WhitelistDrawer onCountChange={n => setWhitelistCount(n)} />
+      </Drawer>
+
+      <Drawer open={activeDrawer === 'bugtracker'} onClose={() => setActiveDrawer(null)} title="Bug Tracker Settings">
+        <BugTrackerDrawer onCountChange={n => setSoftwareCount(n)} />
       </Drawer>
     </div>
   );
@@ -678,6 +693,114 @@ function WhitelistDrawer({ onCountChange }) {
                 <button type="button" className="whitelist-item__remove" title="Remove"
                   onClick={() => handleRemove(e.id)}>
                   <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function BugTrackerDrawer({ onCountChange }) {
+  const [entries, setEntries] = useState(null);
+  const [form, setForm] = useState({ name: '', url: '' });
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState('');
+  const [error, setError] = useState('');
+
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 2500); }
+
+  function load() {
+    api.get('/bugtracker/software').then(r => {
+      setEntries(r.data);
+      onCountChange?.(r.data.length);
+    }).catch(() => setError('Failed to load software list.'));
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    setSaving(true);
+    setError('');
+    try {
+      await api.post('/bugtracker/software', {
+        name: form.name.trim(),
+        url: form.url.trim(),
+      });
+      setForm({ name: '', url: '' });
+      showToast('Software added');
+      load();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to add software');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id) {
+    try {
+      await api.delete(`/bugtracker/software/${id}`);
+      showToast('Software removed');
+      load();
+    } catch {
+      setError('Failed to remove software');
+    }
+  }
+
+  if (!entries) return <div className="drawer-loading">Loading…</div>;
+
+  return (
+    <>
+      {toast && <div className="drawer-toast drawer-toast--success">{toast}</div>}
+      <div className="drawer-section">
+        <h4 className="drawer-section__title">Tracked software</h4>
+        <p className="drawer-section__desc">Bug reports can be linked to a specific product, site, or application from this list.</p>
+      </div>
+
+      <div className="drawer-section">
+        <h4 className="drawer-section__title">Add software</h4>
+        {error && <p className="drawer-section__error">{error}</p>}
+        <form className="bugtracker-form" onSubmit={handleAdd}>
+          <input
+            className="form-input"
+            placeholder="Software name"
+            value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+          />
+          <input
+            className="form-input"
+            placeholder="https://example.com/app"
+            value={form.url}
+            onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
+          />
+          <button className="btn btn--primary" type="submit" disabled={saving || !form.name.trim()}>
+            {saving ? 'Adding…' : 'Add software'}
+          </button>
+        </form>
+      </div>
+
+      <div className="drawer-section">
+        <h4 className="drawer-section__title">Current software</h4>
+        {entries.length === 0 ? (
+          <p className="drawer-section__desc">No software entries yet.</p>
+        ) : (
+          <div className="bugtracker-list">
+            {entries.map(entry => (
+              <div key={entry.id} className="bugtracker-item">
+                <div className="bugtracker-item__info">
+                  <div className="bugtracker-item__name">{entry.name}</div>
+                  {entry.url && (
+                    <a className="bugtracker-item__url" href={entry.url} target="_blank" rel="noreferrer">
+                      {entry.url}
+                    </a>
+                  )}
+                </div>
+                <button type="button" className="bugtracker-item__remove" onClick={() => handleDelete(entry.id)}>
+                  <span className="material-symbols-outlined">delete</span>
                 </button>
               </div>
             ))}

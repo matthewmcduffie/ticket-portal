@@ -349,3 +349,52 @@
 
 .whitelist-item__remove:hover { background: var(--color-error-container); color: var(--color-on-error-container); }
 .whitelist-item__remove .material-symbols-outlined { font-size: 16px; }
+
+.bugtracker-form {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.bugtracker-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.bugtracker-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-low);
+}
+
+.bugtracker-item__info {
+  min-width: 0;
+}
+
+.bugtracker-item__name {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.bugtracker-item__url {
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.bugtracker-item__url:hover {
+  text-decoration: underline;
+}
+
+.bugtracker-item__remove {
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}

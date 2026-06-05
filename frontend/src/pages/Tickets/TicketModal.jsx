@@ -22,10 +22,18 @@ function fileIcon(mime) {
   return 'attach_file';
 }
 
-export default function TicketModal({ ticket, onClose, onSaved }) {
+export default function TicketModal({
+  ticket,
+  onClose,
+  onSaved,
+  defaultIssueType = 'ticket',
+  fixedIssueType = null,
+  allowBugReports = false,
+}) {
   const { user } = useAuth();
   const isEdit  = !!ticket;
   const isAdmin = user?.role === 'admin';
+  const canUseBugReports = isAdmin || allowBugReports;
   const threadRef = useRef(null);
   const fileInputRef = useRef(null);
   const newTicketFileRef = useRef(null);
@@ -43,10 +51,19 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
     description: ticket?.description ?? '',
     priority:    ticket?.priority    ?? 'medium',
     status:      ticket?.status      ?? 'open',
+    issue_type:  fixedIssueType || ticket?.issue_type || defaultIssueType,
+    bug_software_id: ticket?.bug_software_id ?? '',
   });
+  const isBug = form.issue_type === 'bug';
   const [resolutionNote, setResolutionNote] = useState('');
   const [saving,  setSaving]  = useState(false);
   const [formErr, setFormErr] = useState('');
+  const [software, setSoftware] = useState([]);
+
+  useEffect(() => {
+    if (!canUseBugReports) return;
+    api.get('/bugtracker/software').then(r => setSoftware(r.data)).catch(() => {});
+  }, [canUseBugReports]);
 
   // Files for new ticket creation
   const [newTicketFiles, setNewTicketFiles] = useState([]);
@@ -86,7 +103,10 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
   }, [ticket?.id]);
 
   const shareableUsers = allUsers.filter(
-    u => u.id !== ticket?.created_by && !shares.some(s => s.id === u.id)
+    u =>
+      u.id !== ticket?.created_by &&
+      !shares.some(s => s.id === u.id) &&
+      (!isBug || u.role === 'admin' || u.can_view_bug_reports)
   );
 
   async function handleShare() {
@@ -133,15 +153,19 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
 
   useEffect(() => {
     if (mergeOpen && isAdmin && isEdit) {
-      api.get('/tickets?limit=200').then(r => {
+      api.get(`/tickets?limit=200&issue_type=${ticket.issue_type}`).then(r => {
         setAllTickets(r.data.filter(t => t.id !== ticket.id && t.status !== 'solved' && t.status !== 'merged'));
       }).catch(console.error);
     }
-  }, [mergeOpen]);
+  }, [mergeOpen, isAdmin, isEdit, ticket]);
 
   function handleChange(e) {
     const { name, value } = e.target;
-    setForm(f => ({ ...f, [name]: value }));
+    setForm(f => ({
+      ...f,
+      [name]: value,
+      ...(name === 'issue_type' && value !== 'bug' ? { bug_software_id: '' } : {}),
+    }));
     if (name === 'status') setResolutionNote('');
   }
 
@@ -150,6 +174,10 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
     setFormErr('');
     if (needsResNote && !resolutionNote.trim()) {
       setFormErr('A resolution note is required when closing or resolving a ticket.');
+      return;
+    }
+    if (isBug && !form.bug_software_id) {
+      setFormErr('Please select the software this bug report applies to.');
       return;
     }
     setSaving(true);
@@ -171,7 +199,7 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
       }
       onSaved();
     } catch (err) {
-      setFormErr(err.response?.data?.error || 'Failed to save ticket');
+      setFormErr(err.response?.data?.error || `Failed to save ${isBug ? 'bug report' : 'ticket'}`);
     } finally {
       setSaving(false);
     }
@@ -227,7 +255,7 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
     setMergeMsg('');
     try {
       const { data } = await api.post(`/tickets/${ticket.id}/merge`, { ticket_ids: selectedIds });
-      setMergeMsg(`Merged ${data.merged.length} ticket${data.merged.length !== 1 ? 's' : ''}.`);
+      setMergeMsg(`Merged ${data.merged.length} ${isBug ? 'bug report' : 'ticket'}${data.merged.length !== 1 ? 's' : ''}.`);
       setSelectedIds([]);
       setAllTickets(p => p.filter(t => !selectedIds.includes(t.id)));
       loadEvents();
@@ -251,7 +279,10 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
         <div className="modal__header">
           <div className="modal__header-left">
             {isEdit && <span className="modal__ticket-id">#{ticket.id.slice(0, 6).toUpperCase()}</span>}
-            <h2 className="modal__title">{isEdit ? (form.title || 'Ticket') : 'New Ticket'}</h2>
+            <h2 className="modal__title">{isEdit ? (form.title || (isBug ? 'Bug report' : 'Ticket')) : (isBug ? 'New Bug Report' : 'New Ticket')}</h2>
+            <span className={`badge badge--status badge--${isBug ? 'in_progress' : 'open'}`}>
+              {isBug ? 'Bug Report' : 'Ticket'}
+            </span>
           </div>
           <button className="modal__close" onClick={onClose} aria-label="Close">
             <span className="material-symbols-outlined">close</span>
@@ -278,6 +309,21 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
             </div>
 
             <div className="modal__form-row">
+              {canUseBugReports && !isEdit && !fixedIssueType && (
+                <div className="form-field">
+                  <label className="form-label" htmlFor="modal-issue-type">Create as</label>
+                  <select
+                    id="modal-issue-type"
+                    name="issue_type"
+                    className="form-select"
+                    value={form.issue_type}
+                    onChange={handleChange}
+                  >
+                    <option value="ticket">Support ticket</option>
+                    <option value="bug">Bug report</option>
+                  </select>
+                </div>
+              )}
               <div className="form-field">
                 <label className="form-label" htmlFor="modal-priority">Priority</label>
                 <select id="modal-priority" name="priority" className="form-select"
@@ -301,6 +347,24 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
                 </div>
               )}
             </div>
+
+            {isBug && (
+              <div className="form-field">
+                <label className="form-label" htmlFor="modal-software">Software</label>
+                <select
+                  id="modal-software"
+                  name="bug_software_id"
+                  className="form-select"
+                  value={form.bug_software_id}
+                  onChange={handleChange}
+                >
+                  <option value="">Select software</option>
+                  {software.map(item => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Resolution note */}
             {needsResNote && (
@@ -341,7 +405,7 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
                 >
                   <span className="material-symbols-outlined modal__drop-icon">cloud_upload</span>
                   <span>Drop files here or <strong>click to browse</strong></span>
-                  <span className="modal__drop-hint">Images, PDF, Word, Excel, ZIP — up to 25 MB each</span>
+                  <span className="modal__drop-hint">Images, PDF, Word, Excel, ZIP - up to 25 MB each</span>
                 </div>
                 <input ref={newTicketFileRef} type="file" multiple className="modal__file-hidden"
                   onChange={e => addNewTicketFiles(e.target.files)} />
@@ -364,7 +428,7 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
 
             <div className="modal__form-actions">
               <button type="submit" form="ticket-form" className="btn btn--primary" disabled={saving}>
-                {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Ticket'}
+                {saving ? 'Saving…' : isEdit ? 'Save Changes' : isBug ? 'Create Bug Report' : 'Create Ticket'}
               </button>
               <button type="button" className="btn btn--ghost" onClick={onClose}>Cancel</button>
             </div>
@@ -401,7 +465,7 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
             <div className="modal__share">
               <button className="modal__share-toggle" onClick={() => setShareOpen(o => !o)} type="button">
                 <span className="material-symbols-outlined">group_add</span>
-                Share this ticket
+                Share this {isBug ? 'bug report' : 'ticket'}
                 <span className="material-symbols-outlined modal__share-chevron">
                   {shareOpen ? 'expand_less' : 'expand_more'}
                 </span>
@@ -457,7 +521,7 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
             <div className="modal__merge">
               <button className="modal__merge-toggle" onClick={() => setMergeOpen(o => !o)} type="button">
                 <span className="material-symbols-outlined">merge</span>
-                Merge other tickets into this one
+                Merge other {isBug ? 'bug reports' : 'tickets'} into this one
                 <span className="material-symbols-outlined modal__merge-chevron">
                   {mergeOpen ? 'expand_less' : 'expand_more'}
                 </span>
@@ -472,12 +536,12 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
                   <div className="modal__merge-search">
                     <span className="material-symbols-outlined modal__merge-search-icon">search</span>
                     <input className="modal__merge-search-input" type="search"
-                      placeholder="Search tickets to merge…" value={mergeSearch}
+                      placeholder={`Search ${isBug ? 'bug reports' : 'tickets'} to merge…`} value={mergeSearch}
                       onChange={e => setMergeSearch(e.target.value)} />
                   </div>
                   {filteredForMerge.length === 0 ? (
                     <p className="modal__merge-empty">
-                      {allTickets.length === 0 ? 'No other open tickets.' : 'No tickets match.'}
+                      {allTickets.length === 0 ? `No other open ${isBug ? 'bug reports' : 'tickets'}.` : `No ${isBug ? 'bug reports' : 'tickets'} match.`}
                     </p>
                   ) : (
                     <div className="modal__merge-list">
@@ -502,7 +566,7 @@ export default function TicketModal({ ticket, onClose, onSaved }) {
                     <button className="btn btn--primary modal__merge-confirm" onClick={handleMerge}
                       disabled={merging} type="button">
                       <span className="material-symbols-outlined">merge</span>
-                      {merging ? 'Merging…' : `Merge ${selectedIds.length} ticket${selectedIds.length !== 1 ? 's' : ''} into this one`}
+                      {merging ? 'Merging…' : `Merge ${selectedIds.length} ${isBug ? 'bug report' : 'ticket'}${selectedIds.length !== 1 ? 's' : ''} into this one`}
                     </button>
                   )}
                 </div>

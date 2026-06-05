@@ -6,6 +6,7 @@ import Layout from './components/Layout/Layout.jsx';
 import Login from './pages/Login/Login.jsx';
 import Dashboard from './pages/Dashboard/Dashboard.jsx';
 import Tickets from './pages/Tickets/Tickets.jsx';
+import Bugs from './pages/Bugs/Bugs.jsx';
 import Settings from './pages/Settings/Settings.jsx';
 import UsersPage from './pages/Settings/UsersPage.jsx';
 import Analytics from './pages/Analytics/Analytics.jsx';
@@ -26,6 +27,7 @@ export default function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/tickets" element={<Tickets />} />
+              <Route path="/bugs" element={<Bugs />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/settings/users" element={<UsersPage />} />

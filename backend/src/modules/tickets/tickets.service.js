@@ -1,6 +1,5 @@
 import { getDB } from '../../config/database.js';
 
-// ── Email notifications (graceful — never blocks ticket ops) ──
 async function tryNotify(fn) {
   if (!process.env.AGENTMAIL_API_KEY) return;
   try { await fn(); } catch (err) { console.error('Email notification failed:', err.message); }
@@ -11,7 +10,10 @@ async function creatorEmail(db, userId) {
   return r.rows[0]?.email || null;
 }
 
-// ── Event logging ──────────────────────────────────────────
+export function canViewBugReports(user) {
+  return user?.role === 'admin' || !!user?.can_view_bug_reports;
+}
+
 async function logEvent(db, { ticketId, userId, eventType, detail }) {
   let userName = 'System';
   if (userId) {
@@ -25,19 +27,35 @@ async function logEvent(db, { ticketId, userId, eventType, detail }) {
   );
 }
 
-// ── Access control ─────────────────────────────────────────
-export async function canAccessTicket(ticketId, userId) {
+function itemLabel(issueType) {
+  return issueType === 'bug' ? 'Bug report' : 'Ticket';
+}
+
+export async function canAccessTicket(ticketId, userId, options = {}) {
   const db = getDB();
-  const r = await db.query(
-    `SELECT 1 FROM tickets t
-     LEFT JOIN ticket_shares ts ON ts.ticket_id = t.id AND ts.shared_with = $2
-     WHERE t.id = $1 AND (t.created_by = $2 OR ts.shared_with IS NOT NULL)`,
-    [ticketId, userId]
-  );
+  const { role = 'user', canViewBugReports: allowBugs = false } = options;
+  if (role === 'admin') {
+    const r = await db.query('SELECT issue_type FROM tickets WHERE id = $1 AND deleted_at IS NULL', [ticketId]);
+    return !!r.rows[0];
+  }
+
+  const params = [ticketId, userId];
+  let query = `
+    SELECT 1
+    FROM tickets t
+    LEFT JOIN ticket_shares ts ON ts.ticket_id = t.id AND ts.shared_with = $2
+    WHERE t.id = $1
+      AND t.deleted_at IS NULL
+      AND (t.created_by = $2 OR ts.shared_with IS NOT NULL)
+  `;
+  if (!allowBugs) {
+    params.push('bug');
+    query += ` AND t.issue_type <> $${params.length}`;
+  }
+  const r = await db.query(query, params);
   return r.rows.length > 0;
 }
 
-// ── Sharing ────────────────────────────────────────────────
 export async function shareTicket(ticketId, targetUserId, sharedBy) {
   const db = getDB();
   const r = await db.query(
@@ -61,7 +79,7 @@ export async function unshareTicket(ticketId, targetUserId) {
 export async function getTicketShares(ticketId) {
   const db = getDB();
   const r = await db.query(
-    `SELECT u.id, u.name, u.email, ts.created_at AS shared_at
+    `SELECT u.id, u.name, u.email, u.can_view_bug_reports, ts.created_at AS shared_at
      FROM ticket_shares ts
      JOIN users u ON u.id = ts.shared_with
      WHERE ts.ticket_id = $1
@@ -71,18 +89,32 @@ export async function getTicketShares(ticketId) {
   return r.rows;
 }
 
-// ── Queries ────────────────────────────────────────────────
-export async function listTickets({ userId, role, page = 1, limit = 20, status, priority }) {
+export async function listTickets({
+  userId,
+  role,
+  canViewBugReports: allowBugs = false,
+  page = 1,
+  limit = 20,
+  status,
+  priority,
+  issueType,
+}) {
   const db = getDB();
   const offset = (page - 1) * limit;
   const params = [];
   const conditions = [];
 
   let query = `
-    SELECT t.*, u.name AS creator_name, a.name AS assignee_name
+    SELECT
+      t.*,
+      u.name AS creator_name,
+      a.name AS assignee_name,
+      s.name AS software_name,
+      s.url AS software_url
     FROM tickets t
     LEFT JOIN users u ON t.created_by = u.id
     LEFT JOIN users a ON t.assigned_to = a.id
+    LEFT JOIN bug_tracker_software s ON t.bug_software_id = s.id
     WHERE t.deleted_at IS NULL
   `;
 
@@ -93,9 +125,24 @@ export async function listTickets({ userId, role, page = 1, limit = 20, status, 
          SELECT 1 FROM ticket_shares ts WHERE ts.ticket_id = t.id AND ts.shared_with = $${params.length}
        ))`
     );
+    if (!allowBugs) {
+      params.push('bug');
+      conditions.push(`t.issue_type <> $${params.length}`);
+    }
   }
-  if (status) { params.push(status);   conditions.push(`t.status = $${params.length}`); }
-  if (priority) { params.push(priority); conditions.push(`t.priority = $${params.length}`); }
+
+  if (issueType) {
+    params.push(issueType);
+    conditions.push(`t.issue_type = $${params.length}`);
+  }
+  if (status) {
+    params.push(status);
+    conditions.push(`t.status = $${params.length}`);
+  }
+  if (priority) {
+    params.push(priority);
+    conditions.push(`t.priority = $${params.length}`);
+  }
 
   if (conditions.length) query += ' AND ' + conditions.join(' AND ');
   query += ' ORDER BY t.created_at DESC';
@@ -108,10 +155,16 @@ export async function listTickets({ userId, role, page = 1, limit = 20, status, 
 export async function getTicketById(id) {
   const db = getDB();
   const r = await db.query(
-    `SELECT t.*, u.name AS creator_name, a.name AS assignee_name
+    `SELECT
+       t.*,
+       u.name AS creator_name,
+       a.name AS assignee_name,
+       s.name AS software_name,
+       s.url AS software_url
      FROM tickets t
      LEFT JOIN users u ON t.created_by = u.id
      LEFT JOIN users a ON t.assigned_to = a.id
+     LEFT JOIN bug_tracker_software s ON t.bug_software_id = s.id
      WHERE t.id = $1 AND t.deleted_at IS NULL`,
     [id]
   );
@@ -126,27 +179,50 @@ export async function getTicketEvents(ticketId) {
   )).rows;
 }
 
-export async function getRecentActivity(limit = 15) {
+export async function getRecentActivity(limit = 15, canViewBugReports = true) {
   const db = getDB();
-  return (await db.query(
-    `SELECT te.*, t.title AS ticket_title
-     FROM ticket_events te
-     JOIN tickets t ON te.ticket_id = t.id
-     ORDER BY te.created_at DESC
-     LIMIT $1`,
-    [limit]
-  )).rows;
+  const params = [limit];
+  let query = `
+    SELECT
+      te.*,
+      t.title AS ticket_title,
+      t.issue_type,
+      s.name AS software_name
+    FROM ticket_events te
+    JOIN tickets t ON te.ticket_id = t.id
+    LEFT JOIN bug_tracker_software s ON t.bug_software_id = s.id
+    WHERE t.deleted_at IS NULL
+  `;
+  if (!canViewBugReports) {
+    params.unshift('bug');
+    query += ' AND t.issue_type <> $1';
+  }
+  query += ` ORDER BY te.created_at DESC LIMIT $${params.length}`;
+  return (await db.query(query, params)).rows;
 }
 
-export async function createTicket({ title, description, priority = 'medium', createdBy }) {
+export async function createTicket({
+  title,
+  description,
+  priority = 'medium',
+  createdBy,
+  issueType = 'ticket',
+  bugSoftwareId = null,
+}) {
   const db = getDB();
   const ticket = (await db.query(
-    `INSERT INTO tickets (title, description, priority, status, created_by)
-     VALUES ($1, $2, $3, 'open', $4) RETURNING *`,
-    [title, description, priority, createdBy]
+    `INSERT INTO tickets (title, description, priority, status, issue_type, bug_software_id, created_by)
+     VALUES ($1, $2, $3, 'open', $4, $5, $6)
+     RETURNING *`,
+    [title, description, priority, issueType, bugSoftwareId, createdBy]
   )).rows[0];
 
-  await logEvent(db, { ticketId: ticket.id, userId: createdBy, eventType: 'created', detail: 'Ticket opened' });
+  await logEvent(db, {
+    ticketId: ticket.id,
+    userId: createdBy,
+    eventType: 'created',
+    detail: issueType === 'bug' ? 'Bug report opened' : 'Ticket opened',
+  });
 
   tryNotify(async () => {
     const { notifyTicketCreated } = await import('../email/email.service.js');
@@ -166,16 +242,17 @@ export async function createTicket({ title, description, priority = 'medium', cr
     await sendTicketNotification({ ticket, creatorName: u.rows[0]?.name ?? 'Unknown', eventType: 'created' });
   });
 
-  return ticket;
+  return getTicketById(ticket.id);
 }
 
-export async function updateTicket(id, updates, userRole, userId) {
+export async function updateTicket(id, updates, userRole, userId, canViewBugReports = false) {
   const db = getDB();
   const ticket = await getTicketById(id);
   if (!ticket) return null;
+  if (ticket.issue_type === 'bug' && userRole !== 'admin' && !canViewBugReports) return null;
   if (userRole !== 'admin' && ticket.created_by !== userId) return null;
 
-  const allowed = ['title', 'description', 'status', 'priority', 'assigned_to'];
+  const allowed = ['title', 'description', 'status', 'priority', 'assigned_to', 'bug_software_id'];
   const fields = [];
   const values = [];
 
@@ -188,27 +265,39 @@ export async function updateTicket(id, updates, userRole, userId) {
   if (!fields.length) return ticket;
 
   values.push(id);
-  const updated = (await db.query(
+  await db.query(
     `UPDATE tickets SET ${fields.join(', ')}, updated_at = NOW()
-     WHERE id = $${values.length} RETURNING *`,
+     WHERE id = $${values.length}`,
     values
-  )).rows[0];
+  );
+  const updated = await getTicketById(id);
 
   if (updates.status && updates.status !== ticket.status) {
     await logEvent(db, {
-      ticketId: id, userId, eventType: 'status_changed',
+      ticketId: id,
+      userId,
+      eventType: 'status_changed',
       detail: `Status changed from "${ticket.status.replace(/_/g, ' ')}" to "${updates.status.replace(/_/g, ' ')}"`,
     });
     tryNotify(async () => {
       const { notifyStatusChanged } = await import('../email/email.service.js');
       const email = await creatorEmail(db, ticket.created_by);
-      if (email) await notifyStatusChanged({ ticket: updated, creatorEmail: email, oldStatus: ticket.status, newStatus: updates.status });
+      if (email) {
+        await notifyStatusChanged({
+          ticket: updated,
+          creatorEmail: email,
+          oldStatus: ticket.status,
+          newStatus: updates.status,
+        });
+      }
     });
   }
 
   if (updates.priority && updates.priority !== ticket.priority) {
     await logEvent(db, {
-      ticketId: id, userId, eventType: 'priority_changed',
+      ticketId: id,
+      userId,
+      eventType: 'priority_changed',
       detail: `Priority changed from "${ticket.priority}" to "${updates.priority}"`,
     });
   }
@@ -216,9 +305,14 @@ export async function updateTicket(id, updates, userRole, userId) {
   if (updates.assigned_to !== undefined && updates.assigned_to !== ticket.assigned_to) {
     if (updates.assigned_to) {
       const a = await db.query('SELECT name FROM users WHERE id = $1', [updates.assigned_to]);
-      await logEvent(db, { ticketId: id, userId, eventType: 'assigned', detail: `Assigned to ${a.rows[0]?.name ?? 'Unknown'}` });
+      await logEvent(db, {
+        ticketId: id,
+        userId,
+        eventType: 'assigned',
+        detail: `Assigned to ${a.rows[0]?.name ?? 'Unknown'}`,
+      });
     } else {
-      await logEvent(db, { ticketId: id, userId, eventType: 'assigned', detail: 'Ticket unassigned' });
+      await logEvent(db, { ticketId: id, userId, eventType: 'assigned', detail: `${itemLabel(ticket.issue_type)} unassigned` });
     }
   }
 
@@ -235,7 +329,7 @@ export async function mergeTickets(primaryId, ticketIds, userId) {
   for (const tid of ticketIds) {
     if (tid === primaryId) continue;
     const t = await getTicketById(tid);
-    if (!t) continue;
+    if (!t || t.issue_type !== primary.issue_type) continue;
 
     await db.query(
       `UPDATE tickets SET status = 'merged', merged_into = $1, updated_at = NOW() WHERE id = $2`,
@@ -243,13 +337,14 @@ export async function mergeTickets(primaryId, ticketIds, userId) {
     );
 
     await logEvent(db, {
-      ticketId: tid, userId, eventType: 'merged',
-      detail: `Ticket merged into #${primaryId.slice(0, 6).toUpperCase()} — "${primary.title}"`,
+      ticketId: tid,
+      userId,
+      eventType: 'merged',
+      detail: `${itemLabel(t.issue_type)} merged into #${primaryId.slice(0, 6).toUpperCase()} - "${primary.title}"`,
     });
 
     merged.push(t);
 
-    // Notify the merged ticket's creator
     tryNotify(async () => {
       const { notifyTicketMerged } = await import('../email/email.service.js');
       const email = await creatorEmail(db, t.created_by);
@@ -260,19 +355,21 @@ export async function mergeTickets(primaryId, ticketIds, userId) {
   if (merged.length > 0) {
     const refs = merged.map(t => `"${t.title}" (#${t.id.slice(0, 6).toUpperCase()})`).join(', ');
     await logEvent(db, {
-      ticketId: primaryId, userId, eventType: 'merged',
-      detail: `Merged ${merged.length} related ticket${merged.length > 1 ? 's' : ''} into this one: ${refs}`,
+      ticketId: primaryId,
+      userId,
+      eventType: 'merged',
+      detail: `Merged ${merged.length} related ${primary.issue_type === 'bug' ? 'bug report' : 'ticket'}${merged.length > 1 ? 's' : ''} into this one: ${refs}`,
     });
   }
 
   return { primary, merged };
 }
 
-export async function addComment(ticketId, body, userId, userRole) {
+export async function addComment(ticketId, body, userId, userRole, canViewBugReports = false) {
   const db = getDB();
   const ticket = await getTicketById(ticketId);
   if (!ticket) return null;
-  if (userRole !== 'admin' && !(await canAccessTicket(ticketId, userId))) return null;
+  if (userRole !== 'admin' && !(await canAccessTicket(ticketId, userId, { role: userRole, canViewBugReports }))) return null;
 
   const u = await db.query('SELECT name FROM users WHERE id = $1', [userId]);
   const userName = u.rows[0]?.name ?? 'Unknown';
@@ -283,7 +380,6 @@ export async function addComment(ticketId, body, userId, userRole) {
     [ticketId, userId, userName, body.trim()]
   );
 
-  // Notify ticket creator when an admin responds (not when creator comments on their own ticket)
   if (userRole === 'admin' && ticket.created_by !== userId) {
     tryNotify(async () => {
       const { notifyTicketComment } = await import('../email/email.service.js');
@@ -298,7 +394,6 @@ export async function addComment(ticketId, body, userId, userRole) {
 }
 
 export async function deleteTicket(id) {
-  // Soft delete — preserves ticket_events audit trail and ticket_shares
   await getDB().query(
     'UPDATE tickets SET deleted_at = NOW() WHERE id = $1',
     [id]

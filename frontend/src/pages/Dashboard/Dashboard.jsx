@@ -31,6 +31,7 @@ export default function Dashboard() {
 // USER DASHBOARD
 // ─────────────────────────────────────────────────────────────
 function UserDashboard({ user }) {
+  const canViewBugs = user?.role === 'admin' || user?.can_view_bug_reports;
   const [tickets,       setTickets]       = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [selected,      setSelected]      = useState(null);
@@ -75,7 +76,7 @@ function UserDashboard({ user }) {
     <div className="dashboard">
       <div className="dashboard__welcome">
         <h2>Welcome back, {user?.name}</h2>
-        <p className="dashboard__welcome-sub">Track and manage your support tickets below.</p>
+        <p className="dashboard__welcome-sub">Track and manage your {canViewBugs ? 'issues' : 'support tickets'} below.</p>
       </div>
 
       <div className="dashboard__stats">
@@ -88,7 +89,7 @@ function UserDashboard({ user }) {
       <div className="dashboard__panel">
         <div className="dashboard__panel-header">
           <h3>
-            {activeFilter ? `${statusLabel(activeFilter)} tickets` : 'My Tickets'}
+            {activeFilter ? `${statusLabel(activeFilter)} ${canViewBugs ? 'issues' : 'tickets'}` : `My ${canViewBugs ? 'Issues' : 'Tickets'}`}
             {activeFilter && (
               <button className="dash-filter-clear" onClick={() => setActiveFilter(null)}>
                 <span className="material-symbols-outlined">close</span>
@@ -101,7 +102,7 @@ function UserDashboard({ user }) {
           <div className="dashboard__empty">Loading…</div>
         ) : displayed.length === 0 ? (
           <div className="dashboard__empty">
-            {activeFilter ? `No ${statusLabel(activeFilter)} tickets.` : 'No tickets yet.'}
+            {activeFilter ? `No ${statusLabel(activeFilter)} ${canViewBugs ? 'issues' : 'tickets'}.` : `No ${canViewBugs ? 'issues' : 'tickets'} yet.`}
           </div>
         ) : (
           <table className="dash-table">
@@ -119,6 +120,7 @@ function UserDashboard({ user }) {
                 <tr key={ticket.id} className="dash-table__row" onClick={() => setSelected(ticket)}>
                   <td className="dash-table__title">
                     {isNew(ticket) && <span className="dash-new-badge">New</span>}
+                    {ticket.issue_type === 'bug' && <span className="dash-new-badge" style={{ marginRight: 8 }}>Bug</span>}
                     {ticket.title}
                   </td>
                   <td>
@@ -212,7 +214,7 @@ function AdminDashboard({ user }) {
     <div className="dashboard">
       <div className="dashboard__welcome">
         <h2>Welcome back, {user?.name}</h2>
-        <p className="dashboard__welcome-sub">Support queue overview.</p>
+        <p className="dashboard__welcome-sub">Support queue and bug tracker overview.</p>
       </div>
 
       <div className="dashboard__stats">
@@ -228,7 +230,7 @@ function AdminDashboard({ user }) {
         <div className="dashboard__panel">
           <div className="dashboard__panel-header">
             <h3>
-              {activeFilter ? `${statusLabel(activeFilter)} tickets` : 'Recent Tickets'}
+              {activeFilter ? `${statusLabel(activeFilter)} issues` : 'Recent Issues'}
               {activeFilter && (
                 <button className="dash-filter-clear" onClick={() => setActiveFilter(null)}>
                   <span className="material-symbols-outlined">close</span>
@@ -241,7 +243,7 @@ function AdminDashboard({ user }) {
           {loading ? (
             <div className="dashboard__empty">Loading…</div>
           ) : filteredTickets.length === 0 ? (
-            <div className="dashboard__empty">No {activeFilter ? statusLabel(activeFilter) : ''} tickets.</div>
+            <div className="dashboard__empty">No {activeFilter ? `${statusLabel(activeFilter)} ` : ''}issues.</div>
           ) : (
             <table className="dash-table">
               <thead>
@@ -256,6 +258,7 @@ function AdminDashboard({ user }) {
                   <tr key={ticket.id} className="dash-table__row" onClick={() => setSelected(ticket)}>
                     <td className="dash-table__title">
                       {isNew(ticket) && <span className="dash-new-badge">New</span>}
+                      {ticket.issue_type === 'bug' && <span className="dash-new-badge" style={{ marginRight: 8 }}>Bug</span>}
                       {ticket.title}
                     </td>
                     <td>
@@ -322,6 +325,8 @@ function AdminDashboard({ user }) {
                     <div className="activity-item__detail">{ev.detail}</div>
                     <div className="activity-item__meta">
                       <span className="activity-item__ticket">{ev.ticket_title}</span>
+                      {ev.issue_type === 'bug' && <span className="activity-item__sep">·</span>}
+                      {ev.issue_type === 'bug' && <span>Bug</span>}
                       <span className="activity-item__sep">·</span>
                       <span>{ev.user_name}</span>
                       <span className="activity-item__sep">·</span>

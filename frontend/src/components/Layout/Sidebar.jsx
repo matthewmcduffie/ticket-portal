@@ -12,6 +12,7 @@ const NAV_ITEMS = [
 export default function Sidebar({ open, onClose }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const canViewBugs = user?.role === 'admin' || user?.can_view_bug_reports;
 
   const navLink = (item) => (
     <NavLink
@@ -47,7 +48,10 @@ export default function Sidebar({ open, onClose }) {
       </div>
 
       <nav className="sidebar__nav" aria-label="Main navigation">
-        {NAV_ITEMS.filter(item => !item.adminOnly || user?.role === 'admin').map(navLink)}
+        {NAV_ITEMS
+          .filter(item => !item.adminOnly || user?.role === 'admin')
+          .map(navLink)}
+        {canViewBugs && navLink({ to: '/bugs', label: 'Bug Tracker', icon: 'bug_report' })}
       </nav>
 
       {user?.role === 'admin' && (

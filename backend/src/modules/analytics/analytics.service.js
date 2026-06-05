@@ -15,10 +15,13 @@ export async function getOverview() {
       COUNT(*) FILTER (WHERE status = 'waiting_for_user')                  AS waiting_for_user,
       COUNT(*) FILTER (WHERE status = 'solved')                            AS solved,
       COUNT(*) FILTER (WHERE status = 'merged')                            AS merged,
+      COUNT(*) FILTER (WHERE issue_type = 'ticket')                        AS tickets,
+      COUNT(*) FILTER (WHERE issue_type = 'bug')                           AS bugs,
       COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day')       AS today,
       COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')      AS this_week,
       COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')     AS this_month
     FROM tickets
+    WHERE deleted_at IS NULL
   `);
 
   // ── Resolution time + SLA per priority ────────────────
@@ -31,7 +34,8 @@ export async function getOverview() {
         MIN(te.created_at) AS resolved_at
       FROM tickets t
       JOIN ticket_events te ON te.ticket_id = t.id
-      WHERE t.status = 'solved'
+      WHERE t.deleted_at IS NULL
+        AND t.status = 'solved'
         AND te.event_type = 'status_changed'
         AND te.detail ILIKE '%to "solved"%'
       GROUP BY t.id, t.priority, t.created_at
@@ -53,6 +57,7 @@ export async function getOverview() {
       )                                                             AS within_sla
     FROM tickets all_t
     LEFT JOIN resolved_times rt ON rt.id = all_t.id
+    WHERE all_t.deleted_at IS NULL
     GROUP BY all_t.priority
     ORDER BY CASE all_t.priority
       WHEN 'critical' THEN 1 WHEN 'high' THEN 2
@@ -62,15 +67,16 @@ export async function getOverview() {
 
   // ── Daily volume — last 14 days ────────────────────────
   const { rows: daily } = await db.query(`
-    SELECT DATE(created_at) AS date, COUNT(*) AS count
+    SELECT TO_CHAR(created_at::date, 'YYYY-MM-DD') AS date, COUNT(*) AS count
     FROM tickets
-    WHERE created_at >= NOW() - INTERVAL '14 days'
-    GROUP BY DATE(created_at)
+    WHERE deleted_at IS NULL
+      AND created_at >= NOW() - INTERVAL '14 days'
+    GROUP BY created_at::date
     ORDER BY date
   `);
 
   // Fill in any missing days with 0
-  const dailyMap = Object.fromEntries(daily.map(r => [String(r.date).slice(0, 10), parseInt(r.count)]));
+  const dailyMap = Object.fromEntries(daily.map(r => [r.date, parseInt(r.count, 10)]));
   const dailyFull = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date();
@@ -96,7 +102,8 @@ export async function getOverview() {
         ELSE 4
       END                                                    AS sort_order
     FROM tickets
-    WHERE status IN ('open','in_progress','waiting_for_user')
+    WHERE deleted_at IS NULL
+      AND status IN ('open','in_progress','waiting_for_user')
     GROUP BY range, sort_order
     ORDER BY sort_order
   `);
@@ -118,6 +125,8 @@ export async function getOverview() {
       waiting_for_user: +vol.waiting_for_user,
       solved:           +vol.solved,
       merged:           +vol.merged,
+      tickets:          +vol.tickets,
+      bugs:             +vol.bugs,
       today:            +vol.today,
       this_week:        +vol.this_week,
       this_month:       +vol.this_month,
