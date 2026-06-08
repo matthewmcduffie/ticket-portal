@@ -64,7 +64,10 @@ export async function createTicket(req, res) {
 export async function updateTicket(req, res) {
   try {
     if (req.body.issue_type !== undefined) {
-      return res.status(400).json({ error: 'Issue type cannot be changed after creation' });
+      const existing = await svc.getTicketById(req.params.id);
+      if (existing && req.body.issue_type !== existing.issue_type) {
+        return res.status(400).json({ error: 'Issue type cannot be changed after creation' });
+      }
     }
     const ticket = await svc.updateTicket(
       req.params.id,

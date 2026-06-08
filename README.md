@@ -13,8 +13,10 @@ Most helpdesk software is built for large enterprise teams. If you just need a c
 - Duplicate or related tickets can be merged together to reduce clutter
 - Every ticket has a full activity trail showing who opened it, who replied, and when
 - Tickets can be shared with other users who need visibility without full access
+- Bug reports are tracked separately from support tickets and can be linked to a catalog of the software or products you maintain
 - Notifications go out by email when ticket status changes, and to Discord or Slack when new tickets arrive
 - File attachments are supported on all tickets, with type and size limits you control
+- Automated backups to Amazon S3 or Cloudflare R2, with scheduling, rotation, and a guided restore process for disaster recovery
 
 ---
 
@@ -162,6 +164,33 @@ Both Discord and Slack send a formatted message when a new ticket is opened. Con
 Attachments can be images, PDFs, Word documents, spreadsheets, CSVs, ZIPs, or plain text files. Size limits are configurable from **Settings, Uploads**.
 
 Before uploading a file, read the notice on the upload form. This system may handle sensitive information.
+
+---
+
+## Bug tracking
+
+Bug reports live in their own queue, separate from regular support tickets, so engineering issues don't get lost in the support inbox. Anyone can be granted access to view and manage them — go to **Settings, User Management** to grant a user the bug report permission, or give them the admin role.
+
+Bug reports can be linked to a specific product, site, or application from a software catalog you maintain at **Settings, Bug Tracker**. Analytics breaks out bug volume separately from regular ticket volume so you can see how much of your queue is bugs versus support requests.
+
+---
+
+## Backups and restoring
+
+From **Settings, Backups** you can schedule automatic backups of the database, tickets, and users to Amazon S3 or Cloudflare R2. Each backup is a compressed export uploaded to the bucket you configure.
+
+- Choose how often backups run — daily, weekly, or monthly — and what time they start. The default is nightly at midnight.
+- Backups rotate using a grandfather-father-son scheme: up to three copies are kept, and the oldest is removed automatically once the limit is reached.
+- A test button runs a real connection check followed by a real backup, so you can confirm everything is wired up correctly before relying on the schedule.
+- Every run — scheduled, manual, or test — is recorded in a history log with its size, status, and outcome.
+
+If something ever goes wrong — a corrupted database, a bad migration, accidental data loss — **Settings, Restore** can bring it back. There are three ways to restore:
+
+- Pick one of the backups already stored in your configured bucket and restore directly from it
+- Upload a backup file exported by this app (or a compatible JSON bundle) and restore from that
+- Upload your own SQL dump (for example from `pg_dump`) and run it directly against the database — useful if you maintain backups outside this app
+
+Restoring replaces existing data, so every option requires typing a confirmation phrase before it runs, and every attempt — successful or not — is recorded in its own history log along with who ran it and what happened.
 
 ---
 

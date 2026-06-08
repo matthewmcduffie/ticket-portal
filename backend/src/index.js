@@ -75,6 +75,28 @@ function startRetentionScheduler() {
   }, 30_000);
 }
 
+async function checkScheduledBackup() {
+  try {
+    const { getBackupConfig, isScheduledBackupDue, runBackup } = await import('./modules/backups/backups.service.js');
+    const config = await getBackupConfig();
+    if (await isScheduledBackupDue(config)) {
+      console.log('Running scheduled backup…');
+      const run = await runBackup({ trigger: 'scheduled' });
+      console.log(`Scheduled backup ${run.status}: ${run.object_key || run.error}`);
+    }
+  } catch (err) {
+    console.error('Scheduled backup check error:', err.message);
+  }
+}
+
+function startBackupScheduler() {
+  const MS_PER_MINUTE = 60 * 1000;
+  setTimeout(() => {
+    checkScheduledBackup();
+    setInterval(checkScheduledBackup, MS_PER_MINUTE);
+  }, 30_000);
+}
+
 async function start() {
   await connectDB();
   await runMigrations();
@@ -85,6 +107,7 @@ async function start() {
   });
   await startEmailPoller();
   startRetentionScheduler();
+  startBackupScheduler();
 }
 
 start().catch(err => {

@@ -9,6 +9,8 @@ import Tickets from './pages/Tickets/Tickets.jsx';
 import Bugs from './pages/Bugs/Bugs.jsx';
 import Settings from './pages/Settings/Settings.jsx';
 import UsersPage from './pages/Settings/UsersPage.jsx';
+import BackupsPage from './pages/Settings/BackupsPage.jsx';
+import RestorePage from './pages/Settings/RestorePage.jsx';
 import Analytics from './pages/Analytics/Analytics.jsx';
 import ChangePassword from './pages/ChangePassword/ChangePassword.jsx';
 import ResetPassword from './pages/ResetPassword/ResetPassword.jsx';
@@ -31,6 +33,8 @@ export default function App() {
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/settings/users" element={<UsersPage />} />
+              <Route path="/settings/backups" element={<BackupsPage />} />
+              <Route path="/settings/restore" element={<RestorePage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

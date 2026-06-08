@@ -8,10 +8,14 @@ const PAGE_TITLES = {
   '/analytics':       'Analytics',
   '/settings':        'Settings',
   '/settings/users':  'User Management',
+  '/settings/backups': 'Backup Settings',
+  '/settings/restore': 'Restore',
 };
 
 const BACK_ROUTES = {
-  '/settings/users': '/settings',
+  '/settings/users':   '/settings',
+  '/settings/backups': '/settings',
+  '/settings/restore': '/settings',
 };
 
 const APP_VERSION = 'Beta 0.1.1';

@@ -1,0 +1,108 @@
+.backups-page {
+  max-width: 960px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.backups-section {
+  background-color: var(--color-surface-lowest);
+  border: var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.backups-section__header {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: var(--border);
+  background-color: var(--color-surface-low);
+}
+
+.backups-section__header h3 { font-size: var(--text-xl); }
+
+.backups-section__desc {
+  font-size: var(--text-base);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+  line-height: 1.6;
+}
+
+.backups-section__body {
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.backups-section__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.backups-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.backups-form-field--narrow { max-width: 280px; }
+
+.backups-next-run {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.backups-next-run .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--color-primary);
+}
+
+.backups-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-lg);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.backups-warning__icon {
+  color: #b45309;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.backups-warning__text {
+  font-size: var(--text-sm);
+  color: #92400e;
+  line-height: 1.6;
+}
+
+.backups-confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.backups-result {
+  font-size: var(--text-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+}
+
+.backups-result--ok   { background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.backups-result--fail { background-color: var(--color-error-container); color: var(--color-on-error-container); border: 1px solid #fecaca; }
+
+.backups-cell--capitalize { text-transform: capitalize; }
+
+.backups-empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: var(--space-lg) !important;
+}

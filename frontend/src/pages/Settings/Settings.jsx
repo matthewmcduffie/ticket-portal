@@ -13,6 +13,7 @@ export default function Settings() {
   const [uploadsEnabled,  setUploadsEnabled]  = useState(true);
   const [whitelistCount,  setWhitelistCount]  = useState(null);
   const [softwareCount,   setSoftwareCount]   = useState(null);
+  const [backupStatus,    setBackupStatus]    = useState(null);
 
   useEffect(() => {
     api.get('/users').then(r => setUserCount(r.data.length)).catch(() => {});
@@ -21,6 +22,10 @@ export default function Settings() {
     api.get('/attachments/config').then(r => setUploadsEnabled(r.data.enabled)).catch(() => {});
     api.get('/whitelist').then(r => setWhitelistCount(r.data.length)).catch(() => {});
     api.get('/bugtracker/software').then(r => setSoftwareCount(r.data.length)).catch(() => {});
+    api.get('/backups').then(r => setBackupStatus({
+      configured: !!r.data.backup_provider,
+      scheduled: r.data.backup_schedule_enabled === 'true',
+    })).catch(() => {});
   }, []);
 
   const CARDS = [
@@ -32,6 +37,7 @@ export default function Settings() {
       description: 'Create accounts, assign roles, and manage team access.',
       meta: userCount !== null ? `${userCount} user${userCount !== 1 ? 's' : ''}` : null,
       action: 'page',
+      path: '/settings/users',
     },
     {
       id: 'bugtracker',
@@ -97,10 +103,32 @@ export default function Settings() {
         : null,
       action: 'drawer',
     },
+    {
+      id: 'backups',
+      icon: 'cloud_upload',
+      iconColor: '#0f766e',
+      title: 'Backups',
+      description: 'Schedule automated backups of the database, tickets, and users to Amazon S3 or Cloudflare R2.',
+      meta: backupStatus?.configured
+        ? (backupStatus.scheduled ? 'Scheduled backups on' : 'Configured — schedule off')
+        : null,
+      status: backupStatus ? (backupStatus.configured ? 'connected' : 'unconfigured') : undefined,
+      action: 'page',
+      path: '/settings/backups',
+    },
+    {
+      id: 'restore',
+      icon: 'restore',
+      iconColor: '#b91c1c',
+      title: 'Restore',
+      description: 'Recover the database from a cloud backup, an uploaded backup file, or your own SQL dump.',
+      action: 'page',
+      path: '/settings/restore',
+    },
   ];
 
   function handleCard(card) {
-    if (card.action === 'page') navigate('/settings/users');
+    if (card.action === 'page') navigate(card.path);
     else setActiveDrawer(card.id);
   }
 
@@ -135,7 +163,7 @@ export default function Settings() {
       </Drawer>
 
       <Drawer open={activeDrawer === 'email'}   onClose={() => setActiveDrawer(null)} title="Email Settings">
-        <EmailDrawer />
+        <EmailDrawer onOpenWhitelist={() => setActiveDrawer('whitelist')} />
       </Drawer>
 
       <Drawer open={activeDrawer === 'discord'} onClose={() => setActiveDrawer(null)} title="Discord Integration">
@@ -185,6 +213,8 @@ function AppSettingsDrawer() {
 
   const appSettings = settings.filter(s =>
     !s.key.startsWith('discord_') &&
+    !s.key.startsWith('slack_') &&
+    !s.key.startsWith('backup_') &&
     !s.key.startsWith('email_') &&
     !s.key.startsWith('upload') &&
     s.key !== 'uploads_enabled'
@@ -222,7 +252,7 @@ function AppSettingRow({ setting, onSave, saving }) {
 }
 
 // ─── Email Drawer ──────────────────────────────────────────────────────────────
-function EmailDrawer() {
+function EmailDrawer({ onOpenWhitelist }) {
   const [status, setStatus]   = useState(null);
   const [testing, setTesting] = useState(false);
   const [result, setResult]   = useState(null);
@@ -276,6 +306,14 @@ function EmailDrawer() {
       <div className="drawer-section">
         <h4 className="drawer-section__title">Outbound Notifications</h4>
         <p className="drawer-section__desc">Ticket creators are notified by email when their ticket is opened or its status changes.</p>
+      </div>
+
+      <div className="drawer-note">
+        <span className="material-symbols-outlined drawer-note__icon">info</span>
+        <p className="drawer-note__text">
+          Inbound emails are filtered by the <strong>Email Whitelist</strong> — when it's empty, every sender is allowed to create tickets.{' '}
+          <button type="button" className="drawer-note__link" onClick={onOpenWhitelist}>Check the Whitelist settings</button>.
+        </p>
       </div>
 
       <div className="drawer-test">

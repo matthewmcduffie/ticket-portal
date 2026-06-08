@@ -252,13 +252,18 @@ export async function updateTicket(id, updates, userRole, userId, canViewBugRepo
   if (ticket.issue_type === 'bug' && userRole !== 'admin' && !canViewBugReports) return null;
   if (userRole !== 'admin' && ticket.created_by !== userId) return null;
 
+  // Empty-string values from select inputs mean "unset" for nullable uuid columns.
+  const normalized = { ...updates };
+  if (normalized.assigned_to === '') normalized.assigned_to = null;
+  if (normalized.bug_software_id === '') normalized.bug_software_id = null;
+
   const allowed = ['title', 'description', 'status', 'priority', 'assigned_to', 'bug_software_id'];
   const fields = [];
   const values = [];
 
   for (const key of allowed) {
-    if (updates[key] !== undefined) {
-      values.push(updates[key]);
+    if (normalized[key] !== undefined) {
+      values.push(normalized[key]);
       fields.push(`${key} = $${values.length}`);
     }
   }
@@ -302,9 +307,9 @@ export async function updateTicket(id, updates, userRole, userId, canViewBugRepo
     });
   }
 
-  if (updates.assigned_to !== undefined && updates.assigned_to !== ticket.assigned_to) {
-    if (updates.assigned_to) {
-      const a = await db.query('SELECT name FROM users WHERE id = $1', [updates.assigned_to]);
+  if (normalized.assigned_to !== undefined && normalized.assigned_to !== ticket.assigned_to) {
+    if (normalized.assigned_to) {
+      const a = await db.query('SELECT name FROM users WHERE id = $1', [normalized.assigned_to]);
       await logEvent(db, {
         ticketId: id,
         userId,
