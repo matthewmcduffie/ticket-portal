@@ -1,5 +1,4 @@
 import * as svc from './attachments.service.js';
-import { canAccessTicket } from '../tickets/tickets.service.js';
 import { logAudit } from '../audit/audit.service.js';
 import { createHmac } from 'crypto';
 
@@ -22,7 +21,7 @@ export async function getSignedUrl(req, res) {
     const att = await svc.getAttachment(req.params.id);
     if (!att) return res.status(404).json({ error: 'Attachment not found' });
 
-    if (req.user.role !== 'admin' && !(await canAccessTicket(att.ticket_id, req.user.id))) {
+    if (!(await svc.canAccessAttachment(att, req.user))) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -56,7 +55,7 @@ export async function downloadAttachment(req, res) {
     } else {
       // Cookie-auth path
       if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-      if (req.user.role !== 'admin' && !(await canAccessTicket(att.ticket_id, req.user.id))) {
+      if (!(await svc.canAccessAttachment(att, req.user))) {
         return res.status(403).json({ error: 'Access denied' });
       }
     }

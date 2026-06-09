@@ -14,6 +14,7 @@ export default function Settings() {
   const [whitelistCount,  setWhitelistCount]  = useState(null);
   const [softwareCount,   setSoftwareCount]   = useState(null);
   const [backupStatus,    setBackupStatus]    = useState(null);
+  const [projectsEnabled, setProjectsEnabled] = useState(false);
 
   useEffect(() => {
     api.get('/users').then(r => setUserCount(r.data.length)).catch(() => {});
@@ -26,6 +27,7 @@ export default function Settings() {
       configured: !!r.data.backup_provider,
       scheduled: r.data.backup_schedule_enabled === 'true',
     })).catch(() => {});
+    api.get('/settings').then(r => setProjectsEnabled(r.data.find(s => s.key === 'projects_enabled')?.value === 'true')).catch(() => {});
   }, []);
 
   const CARDS = [
@@ -125,6 +127,15 @@ export default function Settings() {
       action: 'page',
       path: '/settings/restore',
     },
+    {
+      id: 'projects',
+      icon: 'folder_special',
+      iconColor: '#6d28d9',
+      title: 'Projects',
+      description: 'Turn the Projects feature on or off and decide which users are allowed to create and use projects.',
+      status: projectsEnabled ? 'enabled' : 'disabled',
+      action: 'drawer',
+    },
   ];
 
   function handleCard(card) {
@@ -184,6 +195,10 @@ export default function Settings() {
 
       <Drawer open={activeDrawer === 'bugtracker'} onClose={() => setActiveDrawer(null)} title="Bug Tracker Settings">
         <BugTrackerDrawer onCountChange={n => setSoftwareCount(n)} />
+      </Drawer>
+
+      <Drawer open={activeDrawer === 'projects'} onClose={() => setActiveDrawer(null)} title="Projects Settings">
+        <ProjectsDrawer onConfigChange={enabled => setProjectsEnabled(enabled)} />
       </Drawer>
     </div>
   );
@@ -437,6 +452,63 @@ function DiscordDrawer({ onConfigChange }) {
 }
 
 // ─── Uploads Drawer ───────────────────────────────────────────────────────────
+function ProjectsDrawer({ onConfigChange }) {
+  const [enabled, setEnabled] = useState(null);
+  const [saving,  setSaving]  = useState(false);
+  const [toast,   setToast]   = useState('');
+
+  useEffect(() => {
+    api.get('/settings')
+      .then(r => setEnabled(r.data.find(s => s.key === 'projects_enabled')?.value === 'true'))
+      .catch(console.error);
+  }, []);
+
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 2500); }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await api.patch('/settings/projects_enabled', { value: enabled ? 'true' : 'false' });
+      showToast('Saved');
+      onConfigChange?.(enabled);
+    } catch { showToast('Error saving'); }
+    finally { setSaving(false); }
+  }
+
+  if (enabled === null) return <div className="drawer-loading">Loading…</div>;
+
+  return (
+    <>
+      {toast && <div className="drawer-toast drawer-toast--success">{toast}</div>}
+
+      <div className="drawer-section">
+        <h4 className="drawer-section__title">Enable Projects</h4>
+        <p className="drawer-section__desc">When disabled, the Projects link is hidden for everyone and project requests are rejected, even for users who have been granted access. Grant individual users access in <strong>User Management</strong> via the &quot;Can use Projects&quot; toggle.</p>
+        <div className="drawer-toggles">
+          <label className="drawer-toggle">
+            <input
+              type="checkbox"
+              className="drawer-toggle__check"
+              checked={enabled}
+              onChange={e => setEnabled(e.target.checked)}
+            />
+            <div className="drawer-toggle__info">
+              <div className="drawer-toggle__label">Allow permitted users to create and use Projects</div>
+              <div className="drawer-toggle__desc">Lets permitted users group tickets and bugs into shared projects with invited teammates.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div className="drawer-actions">
+        <button className="btn btn--primary" onClick={save} disabled={saving}>
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+    </>
+  );
+}
+
 function UploadsDrawer({ onConfigChange }) {
   const [config,  setConfig]  = useState(null);
   const [saving,  setSaving]  = useState(false);

@@ -5,6 +5,7 @@ import './Header.css';
 const PAGE_TITLES = {
   '/dashboard':       'Dashboard',
   '/tickets':         'Tickets',
+  '/projects':        'Projects',
   '/analytics':       'Analytics',
   '/settings':        'Settings',
   '/settings/users':  'User Management',
@@ -18,14 +19,17 @@ const BACK_ROUTES = {
   '/settings/restore': '/settings',
 };
 
+const PROJECT_DETAIL_RE = /^\/projects\/[^/]+$/;
+
 const APP_VERSION = 'Beta 0.1.1';
 const PROJECT_URL = 'https://github.com/matthewmcduffie/ticket-portal';
 
 export default function Header({ onMenuClick }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const title  = PAGE_TITLES[pathname] ?? 'Tickets';
-  const backTo = BACK_ROUTES[pathname];
+  const isProjectDetail = PROJECT_DETAIL_RE.test(pathname);
+  const title  = isProjectDetail ? 'Project' : (PAGE_TITLES[pathname] ?? 'Tickets');
+  const backTo = isProjectDetail ? '/projects' : BACK_ROUTES[pathname];
 
   return (
     <header className="header">

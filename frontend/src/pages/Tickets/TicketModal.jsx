@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../services/api.js';
 import './TicketModal.css';
@@ -31,12 +32,24 @@ export default function TicketModal({
   allowBugReports = false,
 }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isEdit  = !!ticket;
   const isAdmin = user?.role === 'admin';
   const canUseBugReports = isAdmin || allowBugReports;
+  const canUseProjects = isAdmin || !!user?.can_use_projects;
   const threadRef = useRef(null);
   const fileInputRef = useRef(null);
   const newTicketFileRef = useRef(null);
+
+  // ── Projects availability ────────────────────────────────
+  const [projectsEnabled, setProjectsEnabled] = useState(false);
+  useEffect(() => {
+    if (!canUseProjects || isEdit || fixedIssueType) return;
+    api.get('/settings')
+      .then(r => setProjectsEnabled(r.data.find(s => s.key === 'projects_enabled')?.value === 'true'))
+      .catch(() => {});
+  }, [canUseProjects, isEdit, fixedIssueType]);
+  const showProjectOption = canUseProjects && projectsEnabled && !isEdit && !fixedIssueType;
 
   // ── Upload config ────────────────────────────────────────
   const [uploadConfig, setUploadConfig] = useState({ enabled: true, maxFileSizeMb: 25, maxTotalSizeMb: 100 });
@@ -161,6 +174,11 @@ export default function TicketModal({
 
   function handleChange(e) {
     const { name, value } = e.target;
+    if (name === 'issue_type' && value === 'project') {
+      onClose();
+      navigate('/projects?new=1');
+      return;
+    }
     setForm(f => ({
       ...f,
       [name]: value,
@@ -309,7 +327,7 @@ export default function TicketModal({
             </div>
 
             <div className="modal__form-row">
-              {canUseBugReports && !isEdit && !fixedIssueType && (
+              {(canUseBugReports || showProjectOption) && !isEdit && !fixedIssueType && (
                 <div className="form-field">
                   <label className="form-label" htmlFor="modal-issue-type">Create as</label>
                   <select
@@ -320,7 +338,8 @@ export default function TicketModal({
                     onChange={handleChange}
                   >
                     <option value="ticket">Support ticket</option>
-                    <option value="bug">Bug report</option>
+                    {canUseBugReports && <option value="bug">Bug report</option>}
+                    {showProjectOption && <option value="project">New project…</option>}
                   </select>
                 </div>
               )}

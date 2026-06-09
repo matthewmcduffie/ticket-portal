@@ -12,6 +12,7 @@ function EditUserModal({ target, currentUserId, onClose, onSaved }) {
     email: target.email,
     role: target.role,
     can_view_bug_reports: !!target.can_view_bug_reports,
+    can_use_projects: !!target.can_use_projects,
   });
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState('');
@@ -122,6 +123,20 @@ function EditUserModal({ target, currentUserId, onClose, onSaved }) {
             </div>
           </label>
 
+          <label className="drawer-toggle">
+            <input
+              type="checkbox"
+              name="can_use_projects"
+              className="drawer-toggle__check"
+              checked={form.can_use_projects}
+              onChange={handleChange}
+            />
+            <div className="drawer-toggle__info">
+              <div className="drawer-toggle__label">Can use Projects</div>
+              <div className="drawer-toggle__desc">Shows the Projects link and allows the user to create projects, invite teammates, and track project tickets and bugs.</div>
+            </div>
+          </label>
+
           <div className="umodal__footer">
             <div className="umodal__footer-left">
               {!isSelf && !confirmDel && (
@@ -179,7 +194,7 @@ export default function UsersPage() {
   const [perPage,   setPerPage]   = useState(10);
   const [page,      setPage]      = useState(1);
 
-  const [form,          setForm]          = useState({ name: '', email: '', password: '', role: 'user', can_view_bug_reports: false });
+  const [form,          setForm]          = useState({ name: '', email: '', password: '', role: 'user', can_view_bug_reports: false, can_use_projects: false });
   const [creating,      setCreating]      = useState(false);
   const [createError,   setCreateError]   = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
@@ -216,7 +231,7 @@ export default function UsersPage() {
     setCreating(true);
     try {
       await api.post('/users', form);
-      setForm({ name: '', email: '', password: '', role: 'user', can_view_bug_reports: false });
+      setForm({ name: '', email: '', password: '', role: 'user', can_view_bug_reports: false, can_use_projects: false });
       setCreateSuccess('User created successfully.');
       load();
     } catch (err) {
@@ -330,6 +345,20 @@ export default function UsersPage() {
             </div>
           </label>
 
+          <label className="drawer-toggle">
+            <input
+              type="checkbox"
+              name="can_use_projects"
+              className="drawer-toggle__check"
+              checked={form.can_use_projects}
+              onChange={handleChange}
+            />
+            <div className="drawer-toggle__info">
+              <div className="drawer-toggle__label">Allow Projects access</div>
+              <div className="drawer-toggle__desc">Users with this permission can see the Projects link, create their own projects, and join projects they're invited to.</div>
+            </div>
+          </label>
+
           <div className="users-create-form__footer">
             <button className="btn btn--primary" type="submit" disabled={creating}>
               <span className="material-symbols-outlined">person_add</span>
@@ -384,6 +413,7 @@ export default function UsersPage() {
                   <th>User</th>
                   <th>Role</th>
                   <th>Bug Access</th>
+                  <th>Projects</th>
                   <th>Status</th>
                   <th>Created</th>
                   {isAdmin && <th></th>}
@@ -403,6 +433,7 @@ export default function UsersPage() {
                     </td>
                     <td><span className={`badge role-badge role-badge--${u.role}`}>{u.role}</span></td>
                     <td>{u.can_view_bug_reports ? 'Allowed' : 'No access'}</td>
+                    <td>{u.can_use_projects ? 'Allowed' : 'No access'}</td>
                     <td>
                       <span className={`badge badge--status badge--${u.active ? 'resolved' : 'closed'}`}>
                         {u.active ? 'Active' : 'Inactive'}

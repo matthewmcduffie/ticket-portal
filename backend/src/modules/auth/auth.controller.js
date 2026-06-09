@@ -64,6 +64,7 @@ export async function login(req, res) {
         role: result.role,
         must_change_password: result.must_change_password,
         can_view_bug_reports: result.can_view_bug_reports,
+        can_use_projects: result.can_use_projects,
       },
     });
   } catch (err) {
@@ -100,6 +101,7 @@ export async function refresh(req, res) {
       name: row.name,
       role: row.role,
       can_view_bug_reports: row.can_view_bug_reports,
+      can_use_projects: row.can_use_projects,
     };
     const token = signToken(user);
     res.cookie('token', token, ACCESS_COOKIE);
@@ -115,7 +117,7 @@ export async function me(req, res) {
   try {
     const db = getDB();
     const result = await db.query(
-      'SELECT id, email, name, role, must_change_password, can_view_bug_reports, created_at FROM users WHERE id = $1',
+      'SELECT id, email, name, role, must_change_password, can_view_bug_reports, can_use_projects, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'User not found' });

@@ -80,6 +80,7 @@ export function signToken(user) {
       email: user.email,
       role: user.role,
       can_view_bug_reports: !!user.can_view_bug_reports,
+      can_use_projects: !!user.can_use_projects,
     },
     process.env.JWT_SECRET,
     { expiresIn: '30m' }
@@ -110,7 +111,7 @@ export async function validateRefreshToken(raw) {
   const db = getDB();
   const hash = hashToken(raw);
   const r = await db.query(
-    `SELECT rt.*, u.id AS uid, u.email, u.name, u.role, u.active, u.must_change_password, u.can_view_bug_reports
+    `SELECT rt.*, u.id AS uid, u.email, u.name, u.role, u.active, u.must_change_password, u.can_view_bug_reports, u.can_use_projects
      FROM refresh_tokens rt
      JOIN users u ON u.id = rt.user_id
      WHERE rt.token_hash = $1

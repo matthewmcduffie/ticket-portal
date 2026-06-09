@@ -115,6 +115,18 @@ export async function notifyTicketComment({ ticket, comment, responderName, crea
   return sendEmail({ to: creatorEmail, subject, text, html: htmlBody });
 }
 
+export async function notifyProjectMention({ projectName, ticket, comment, authorName, recipientEmail }) {
+  const subject = `[Ticket Portal] ${authorName} mentioned you in ${projectName}`;
+  const text = `${authorName} mentioned you in a comment on "${ticket.title}" (${projectName}).\n\n${comment}`;
+  const htmlBody = html(
+    `You were mentioned`,
+    `<p style="font-size:14px;color:#45464d;margin:0 0 16px;"><strong>${authorName}</strong> mentioned you in a comment on <strong>${ticket.title}</strong>:</p>
+     <div style="border-left:3px solid #1a3461;padding:12px 16px;background:#f7f9fb;border-radius:0 4px 4px 0;margin-bottom:20px;font-size:14px;color:#191c1e;white-space:pre-wrap;">${comment.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+     ${table(row('Project', projectName) + row('Ticket', ticket.title))}`
+  );
+  return sendEmail({ to: recipientEmail, subject, text, html: htmlBody });
+}
+
 export async function notifyTicketMerged({ mergedTicket, primaryTicket, creatorEmail }) {
   const mid = shortId(mergedTicket.id);
   const pid = shortId(primaryTicket.id);

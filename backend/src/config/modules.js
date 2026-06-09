@@ -12,6 +12,7 @@ const MODULE_CONFIG = {
   whitelist: true,
   bugtracker: true,
   backups: true,
+  projects: true,
 };
 
 export async function loadModules(app) {

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import api from '../../services/api.js';
 import './Sidebar.css';
 
 const NAV_ITEMS = [
@@ -13,6 +14,16 @@ export default function Sidebar({ open, onClose }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const canViewBugs = user?.role === 'admin' || user?.can_view_bug_reports;
+  const canUseProjects = user?.role === 'admin' || user?.can_use_projects;
+
+  const [projectsEnabled, setProjectsEnabled] = useState(false);
+  useEffect(() => {
+    if (!canUseProjects) return;
+    api.get('/settings')
+      .then(r => setProjectsEnabled(r.data.find(s => s.key === 'projects_enabled')?.value === 'true'))
+      .catch(() => {});
+  }, [canUseProjects]);
+  const showProjects = canUseProjects && projectsEnabled;
 
   const navLink = (item) => (
     <NavLink
@@ -52,6 +63,7 @@ export default function Sidebar({ open, onClose }) {
           .filter(item => !item.adminOnly || user?.role === 'admin')
           .map(navLink)}
         {canViewBugs && navLink({ to: '/bugs', label: 'Bug Tracker', icon: 'bug_report' })}
+        {showProjects && navLink({ to: '/projects', label: 'Projects', icon: 'folder_special' })}
       </nav>
 
       {user?.role === 'admin' && (
