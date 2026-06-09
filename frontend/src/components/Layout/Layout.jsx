@@ -28,6 +28,14 @@ export default function Layout() {
         </main>
       </div>
       {warning && <InactivityWarning onStay={extendSession} />}
+      <button
+        className="help-fab"
+        onClick={() => window.open('/help', '_blank', 'noopener,noreferrer')}
+        aria-label="Open help"
+        title="Help"
+      >
+        <span className="material-symbols-outlined">help</span>
+      </button>
     </div>
   );
 }

@@ -1,0 +1,89 @@
+.tt {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The tooltip bubble */
+.tt::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.45;
+  padding: 0.35rem 0.6rem;
+  border-radius: 5px;
+  white-space: normal;
+  width: max-content;
+  max-width: var(--tt-max-width, 220px);
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 9999;
+  transition: opacity 0.14s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+
+/* Arrow */
+.tt::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 9999;
+  transition: opacity 0.14s ease;
+}
+
+.tt:hover::after,
+.tt:hover::before { opacity: 1; }
+
+/* ── Top (default) ────── */
+.tt--top::after  { bottom: calc(100% + 8px); }
+.tt--top::before { bottom: calc(100% + 3px); border-top-color: #1e293b; }
+
+/* ── Bottom ───────────── */
+.tt--bottom::after  { top: calc(100% + 8px); }
+.tt--bottom::before { top: calc(100% + 3px); border-bottom-color: #1e293b; }
+
+/* ── Left ─────────────── */
+.tt--left::after {
+  right: calc(100% + 8px);
+  left: auto;
+  transform: none;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+}
+.tt--left::before {
+  right: calc(100% + 3px);
+  left: auto;
+  transform: translateY(-50%);
+  top: 50%;
+  bottom: auto;
+  border-left-color: #1e293b;
+  border-top-color: transparent;
+}
+
+/* ── Right ────────────── */
+.tt--right::after {
+  left: calc(100% + 8px);
+  transform: none;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+}
+.tt--right::before {
+  left: calc(100% + 3px);
+  transform: translateY(-50%);
+  top: 50%;
+  bottom: auto;
+  border-right-color: #1e293b;
+  border-top-color: transparent;
+}

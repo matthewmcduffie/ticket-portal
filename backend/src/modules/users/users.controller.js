@@ -7,15 +7,46 @@ import { logAudit } from '../audit/audit.service.js';
 async function sendInviteEmail(user) {
   if (!process.env.AGENTMAIL_API_KEY) return;
   try {
-    const raw    = await createPasswordResetToken(user.id);
+    const raw    = await createPasswordResetToken(user.id, 24);
     const domain = process.env.APP_DOMAIN || 'tickets.thelastpatch.com';
     const link   = `https://${domain}/reset-password?token=${raw}`;
+    const helpLink = `https://${domain}/help`;
+    const roleLabel = { admin: 'Administrator', technician: 'Technician', user: 'User' }[user.role] || 'User';
     const { sendEmail } = await import('../email/email.service.js');
     await sendEmail({
       to:      user.email,
-      subject: 'You\'ve been added to the support portal',
-      text:    `Hi ${user.name},\n\nYou've been added to the support portal. Set your password using the link below (it expires in 1 hour):\n\n${link}\n\nIf you didn't expect this, you can ignore this email safely.`,
-      html:    `<p>Hi ${user.name},</p><p>You've been added to the support portal. <a href="${link}">Set your password</a> — the link expires in 1 hour.</p><p>If you didn't expect this, you can ignore it safely.</p>`,
+      subject: 'Your account is ready — Tickets Support Portal',
+      text: [
+        `Hi ${user.name},`,
+        '',
+        `You've been added to the Tickets support portal as a ${roleLabel}.`,
+        '',
+        'Use the link below to set your password and sign in for the first time.',
+        'The link is valid for 24 hours.',
+        '',
+        link,
+        '',
+        `Once you're signed in, you can open the help guide at any time: ${helpLink}`,
+        '',
+        'If you were not expecting this invitation, you can safely ignore this email.',
+        'No action is required.',
+      ].join('\n'),
+      html: `
+<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px">
+  <h2 style="margin:0 0 8px">Welcome to Tickets</h2>
+  <p style="margin:0 0 16px;color:#555">Support Portal</p>
+  <p>Hi ${user.name},</p>
+  <p>You've been added to the <strong>Tickets support portal</strong> as a <strong>${roleLabel}</strong>.</p>
+  <p>Click the button below to set your password and sign in for the first time. The link is valid for <strong>24 hours</strong>.</p>
+  <p style="margin:24px 0">
+    <a href="${link}" style="background:#1d4ed8;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">
+      Set my password
+    </a>
+  </p>
+  <p>After signing in, you can open the <a href="${helpLink}">help guide</a> at any time from the <strong>?</strong> button in the portal.</p>
+  <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
+  <p style="font-size:0.85em;color:#6b7280">If you were not expecting this invitation, you can safely ignore this email. No action is required.</p>
+</div>`.trim(),
     });
   } catch (err) {
     console.error('Failed to send invite email:', err.message);

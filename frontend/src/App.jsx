@@ -19,6 +19,7 @@ import EquipmentDetailPage from './pages/Equipment/EquipmentDetailPage.jsx';
 import Analytics from './pages/Analytics/Analytics.jsx';
 import ChangePassword from './pages/ChangePassword/ChangePassword.jsx';
 import ResetPassword from './pages/ResetPassword/ResetPassword.jsx';
+import HelpPage from './pages/Help/HelpPage.jsx';
 
 export default function App() {
   return (
@@ -28,8 +29,9 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route element={<ProtectedRoute />}>
-            {/* Change-password shown without sidebar/header */}
+            {/* Change-password and Help shown without sidebar/header */}
             <Route path="/change-password" element={<ChangePassword />} />
+            <Route path="/help" element={<HelpPage />} />
             <Route element={<Layout />}>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />

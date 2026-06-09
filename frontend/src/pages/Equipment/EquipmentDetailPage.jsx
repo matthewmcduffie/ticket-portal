@@ -2,7 +2,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../services/api.js';
+import Tooltip from '../../components/Tooltip/Tooltip.jsx';
 import './Equipment.css';
+
+const STATUS_TIP = {
+  pending:   'Pending — request submitted but not yet reviewed.',
+  approved:  'Approved — reviewed and cleared for fulfillment.',
+  fulfilled: 'Fulfilled — equipment has been delivered to the new hire.',
+};
 
 const EQUIPMENT_ITEMS = ['Laptop', 'Monitor', 'Keyboard', 'Mouse'];
 
@@ -186,13 +193,14 @@ export default function EquipmentDetailPage() {
         <div className="eq-detail__card-title">Status</div>
         <div className="eq-status-selector">
           {['pending', 'approved', 'fulfilled'].map(s => (
-            <button
-              key={s}
-              className={`eq-status-btn eq-status-btn--${s}${request.status === s ? ' eq-status-btn--active' : ''}`}
-              onClick={() => request.status !== s && changeStatus(s)}
-            >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
+            <Tooltip key={s} text={STATUS_TIP[s]} position="top">
+              <button
+                className={`eq-status-btn eq-status-btn--${s}${request.status === s ? ' eq-status-btn--active' : ''}`}
+                onClick={() => request.status !== s && changeStatus(s)}
+              >
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            </Tooltip>
           ))}
         </div>
       </div>

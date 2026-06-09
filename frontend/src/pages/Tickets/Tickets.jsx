@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api.js';
 import TicketModal from './TicketModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import Tooltip from '../../components/Tooltip/Tooltip.jsx';
 import './Tickets.css';
 
 const PER_PAGE_OPTIONS = [20, 50, 100];
@@ -13,6 +14,21 @@ const STATUS_LABEL = {
   waiting_for_user: 'Waiting for User',
   solved:           'Solved',
   merged:           'Merged',
+};
+
+const STATUS_TIP = {
+  open:             'Open — submitted and awaiting attention.',
+  in_progress:      'In Progress — someone is actively working on this.',
+  waiting_for_user: 'Waiting for User — work is paused until the submitter responds or takes action.',
+  solved:           'Solved — resolved and closed.',
+  merged:           'Merged — consolidated into another ticket.',
+};
+
+const PRIORITY_TIP = {
+  critical: 'Critical — SLA target: 4 hours. Complete outage or full blocker.',
+  high:     'High — SLA target: 24 hours. Significant issue affecting multiple people.',
+  medium:   'Medium — SLA target: 72 hours. Issue with a workaround available.',
+  low:      'Low — SLA target: 7 days. Minor inconvenience or improvement request.',
 };
 
 export default function Tickets({ issueType = 'ticket' }) {
@@ -204,12 +220,16 @@ export default function Tickets({ issueType = 'ticket' }) {
                       {ticket.title}
                     </td>
                     <td>
-                      <span className={`badge badge--status badge--${ticket.status}`}>
-                        {STATUS_LABEL[ticket.status] ?? ticket.status}
-                      </span>
+                      <Tooltip text={STATUS_TIP[ticket.status]} position="top">
+                        <span className={`badge badge--status badge--${ticket.status}`}>
+                          {STATUS_LABEL[ticket.status] ?? ticket.status}
+                        </span>
+                      </Tooltip>
                     </td>
                     <td>
-                      <span className={`badge badge--${ticket.priority}`}>{ticket.priority}</span>
+                      <Tooltip text={PRIORITY_TIP[ticket.priority]} position="top">
+                        <span className={`badge badge--${ticket.priority}`}>{ticket.priority}</span>
+                      </Tooltip>
                     </td>
                     <td>{ticket.creator_name}</td>
                     <td>{ticket.assignee_name ?? '—'}</td>

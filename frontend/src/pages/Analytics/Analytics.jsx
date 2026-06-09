@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api.js';
 import Drawer from '../../components/Drawer/Drawer.jsx';
 import TicketModal from '../Tickets/TicketModal.jsx';
+import Tooltip from '../../components/Tooltip/Tooltip.jsx';
 import './Analytics.css';
 
 const PRIORITY_ORDER = ['critical', 'high', 'medium', 'low'];
@@ -75,14 +76,31 @@ export default function Analytics() {
   return (
     <div className="analytics">
       <div className="analytics__kpis">
-        <KpiCard label="Total Issues" value={volume.total} sub={`${volume.today} today · ${volume.this_week} this week`} />
-        <KpiCard label="Open" value={volume.open} sub={`${volume.in_progress} in progress`} accent="warning" />
-        <KpiCard label="Avg Resolution" value={fmtHours(avgResolutionHours)} sub="across solved issues" />
+        <KpiCard
+          label="Total Issues"
+          value={volume.total}
+          sub={`${volume.today} today · ${volume.this_week} this week`}
+          tip="All tickets and bug reports ever submitted to the portal."
+        />
+        <KpiCard
+          label="Open"
+          value={volume.open}
+          sub={`${volume.in_progress} in progress`}
+          accent="warning"
+          tip="Unresolved issues: Open + In Progress + Waiting for User. Does not include Solved or Merged."
+        />
+        <KpiCard
+          label="Avg Resolution"
+          value={fmtHours(avgResolutionHours)}
+          sub="across solved issues"
+          tip="Average time from ticket submission to Solved, weighted across all priorities."
+        />
         <KpiCard
           label="SLA Compliance"
           value={overallSlaRate !== null ? `${overallSlaRate}%` : '-'}
           sub="solved issues within target"
           accent={overallSlaRate >= 80 ? 'success' : overallSlaRate >= 60 ? 'warning' : 'danger'}
+          tip="Percentage of resolved tickets closed within their priority SLA target. 80%+ is healthy. Below 60% needs attention."
         />
       </div>
 
@@ -291,10 +309,16 @@ export default function Analytics() {
   );
 }
 
-function KpiCard({ label, value, sub, accent }) {
+function KpiCard({ label, value, sub, accent, tip }) {
   return (
     <div className={`kpi-card${accent ? ` kpi-card--${accent}` : ''}`}>
-      <div className="kpi-card__label">{label}</div>
+      <div className="kpi-card__label">
+        {tip ? (
+          <Tooltip text={tip} maxWidth="210px">
+            <span style={{ borderBottom: '1px dashed currentColor', cursor: 'help' }}>{label}</span>
+          </Tooltip>
+        ) : label}
+      </div>
       <div className="kpi-card__value">{value}</div>
       {sub && <div className="kpi-card__sub">{sub}</div>}
     </div>

@@ -668,3 +668,11 @@
     flex-wrap: wrap;
   }
 }
+
+.modal__field-hint {
+  font-size: 0.85rem;
+  vertical-align: middle;
+  color: var(--color-text-muted, #9ca3af);
+  cursor: help;
+  margin-left: 2px;
+}

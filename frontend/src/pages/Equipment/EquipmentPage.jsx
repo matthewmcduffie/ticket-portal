@@ -2,7 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../services/api.js';
+import Tooltip from '../../components/Tooltip/Tooltip.jsx';
 import './Equipment.css';
+
+const EQ_STATUS_TIP = {
+  pending:   'Pending — submitted, not yet reviewed.',
+  approved:  'Approved — cleared for fulfillment.',
+  fulfilled: 'Fulfilled — equipment delivered.',
+};
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -59,7 +66,9 @@ export default function EquipmentPage() {
                 {(req.items || []).join(', ') || '—'}
               </div>
               <div className="eq-row__due">Due {formatDate(req.due_date)}</div>
-              <span className={`eq-badge eq-badge--${req.status}`}>{req.status}</span>
+              <Tooltip text={EQ_STATUS_TIP[req.status]} position="top">
+                <span className={`eq-badge eq-badge--${req.status}`}>{req.status}</span>
+              </Tooltip>
             </button>
           ))}
         </div>

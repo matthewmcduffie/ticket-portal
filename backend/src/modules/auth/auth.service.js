@@ -149,11 +149,11 @@ export function unlockAccount(email) {
 // ── Password reset tokens ──────────────────────────────────
 const RESET_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-export async function createPasswordResetToken(userId) {
+export async function createPasswordResetToken(userId, expiresInHours = 1) {
   const db = getDB();
   const raw  = randomBytes(32).toString('hex');
   const hash = hashToken(raw);
-  const exp  = new Date(Date.now() + RESET_TTL_MS);
+  const exp  = new Date(Date.now() + (expiresInHours === 1 ? RESET_TTL_MS : expiresInHours * 60 * 60 * 1000));
   // Invalidate any existing unused token for this user
   await db.query(
     `UPDATE password_reset_tokens SET used_at = NOW()

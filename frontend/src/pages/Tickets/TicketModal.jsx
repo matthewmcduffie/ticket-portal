@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../services/api.js';
+import Tooltip from '../../components/Tooltip/Tooltip.jsx';
 import './TicketModal.css';
 
 const NEEDS_RESOLUTION_NOTE = ['solved'];
@@ -344,18 +345,28 @@ export default function TicketModal({
                 </div>
               )}
               <div className="form-field">
-                <label className="form-label" htmlFor="modal-priority">Priority</label>
+                <label className="form-label" htmlFor="modal-priority">
+                  Priority{' '}
+                  <Tooltip text="Sets urgency and the SLA resolution target. Critical = 4 h · High = 24 h · Medium = 72 h · Low = 7 days." maxWidth="230px">
+                    <span className="material-symbols-outlined modal__field-hint">info</span>
+                  </Tooltip>
+                </label>
                 <select id="modal-priority" name="priority" className="form-select"
                   value={form.priority} onChange={handleChange}>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
+                  <option value="low">Low — 7 days</option>
+                  <option value="medium">Medium — 72 hours</option>
+                  <option value="high">High — 24 hours</option>
+                  <option value="critical">Critical — 4 hours</option>
                 </select>
               </div>
               {isEdit && (
                 <div className="form-field">
-                  <label className="form-label" htmlFor="modal-status">Status</label>
+                  <label className="form-label" htmlFor="modal-status">
+                    Status{' '}
+                    <Tooltip text="'Waiting for User' pauses the SLA clock — use it when you need a response before you can continue." maxWidth="230px">
+                      <span className="material-symbols-outlined modal__field-hint">info</span>
+                    </Tooltip>
+                  </label>
                   <select id="modal-status" name="status" className="form-select"
                     value={form.status} onChange={handleChange}>
                     <option value="open">Open</option>
