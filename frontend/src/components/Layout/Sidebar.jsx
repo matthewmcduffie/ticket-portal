@@ -5,30 +5,33 @@ import api from '../../services/api.js';
 import './Sidebar.css';
 
 const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
-  { to: '/tickets',   label: 'Tickets',   icon: 'confirmation_number' },
-  { to: '/analytics', label: 'Analytics', icon: 'bar_chart', adminOnly: true },
+  { to: '/dashboard',      label: 'Dashboard', icon: 'dashboard' },
+  { to: '/tickets',        label: 'Tickets',   icon: 'confirmation_number' },
+  { to: '/analytics',      label: 'Analytics', icon: 'bar_chart',    roles: ['admin', 'technician'] },
+  { to: '/settings/users', label: 'Users',     icon: 'group',        roles: ['technician'] },
 ];
 
 export default function Sidebar({ open, onClose }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const canViewBugs = user?.role === 'admin' || user?.can_view_bug_reports;
-  const canUseProjects = user?.role === 'admin' || user?.can_use_projects;
+  const isAdmin      = user?.role === 'admin';
+  const isTechnician = user?.role === 'technician';
+  const isPrivileged = isAdmin || isTechnician;
 
-  const isAdmin = user?.role === 'admin';
+  const canViewBugs    = isPrivileged || user?.can_view_bug_reports;
+  const canUseProjects = isPrivileged || user?.can_use_projects;
 
   const [projectsEnabled, setProjectsEnabled] = useState(false);
   const [equipmentEnabled, setEquipmentEnabled] = useState(false);
   useEffect(() => {
-    if (!canUseProjects && !isAdmin) return;
+    if (!canUseProjects && !isPrivileged) return;
     api.get('/settings').then(r => {
       setProjectsEnabled(r.data.find(s => s.key === 'projects_enabled')?.value === 'true');
       setEquipmentEnabled(r.data.find(s => s.key === 'equipment_requests_enabled')?.value === 'true');
     }).catch(() => {});
-  }, [canUseProjects, isAdmin]);
-  const showProjects = canUseProjects && projectsEnabled;
-  const showEquipment = isAdmin && equipmentEnabled;
+  }, [canUseProjects, isPrivileged]);
+  const showProjects  = canUseProjects && projectsEnabled;
+  const showEquipment = isPrivileged && equipmentEnabled;
 
   const navLink = (item) => (
     <NavLink
@@ -65,7 +68,7 @@ export default function Sidebar({ open, onClose }) {
 
       <nav className="sidebar__nav" aria-label="Main navigation">
         {NAV_ITEMS
-          .filter(item => !item.adminOnly || user?.role === 'admin')
+          .filter(item => !item.roles || item.roles.includes(user?.role))
           .map(navLink)}
         {canViewBugs && navLink({ to: '/bugs', label: 'Bug Tracker', icon: 'bug_report' })}
         {showProjects && navLink({ to: '/projects', label: 'Projects', icon: 'folder_special' })}

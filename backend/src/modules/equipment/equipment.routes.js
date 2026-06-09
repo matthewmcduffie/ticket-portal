@@ -7,7 +7,7 @@ import { equipmentEnabled } from './equipment.service.js';
 const router = Router();
 
 router.use(requireAuth);
-router.use(requireRole('admin'));
+router.use(requireRole('admin', 'technician'));
 
 async function requireEnabled(req, res, next) {
   try {

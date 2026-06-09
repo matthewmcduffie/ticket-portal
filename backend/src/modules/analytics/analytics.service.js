@@ -108,6 +108,22 @@ export async function getOverview() {
     ORDER BY sort_order
   `);
 
+  // ── Equipment requests ─────────────────────────────────
+  const { rows: [eqVol] } = await db.query(`
+    SELECT
+      COUNT(*)                                                              AS total,
+      COUNT(*) FILTER (WHERE status = 'pending')                           AS pending,
+      COUNT(*) FILTER (WHERE status = 'approved')                          AS approved,
+      COUNT(*) FILTER (WHERE status = 'fulfilled')                         AS fulfilled,
+      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day')       AS today,
+      COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')      AS this_week
+    FROM equipment_requests
+  `).catch(() => ({ rows: [null] }));
+
+  const eqEnabled = await db.query(
+    `SELECT value FROM app_settings WHERE key = 'equipment_requests_enabled'`
+  ).then(r => r.rows[0]?.value === 'true').catch(() => false);
+
   // ── Build summary numbers ──────────────────────────────
   const totalResolved   = byPriority.reduce((s, r) => s + parseInt(r.resolved_count || 0), 0);
   const totalWithinSla  = byPriority.reduce((s, r) => s + parseInt(r.within_sla || 0), 0);
@@ -146,5 +162,13 @@ export async function getOverview() {
     })),
     daily_volume: dailyFull,
     aging: aging.map(r => ({ range: r.range, count: +r.count })),
+    equipment: eqEnabled && eqVol ? {
+      total:     +eqVol.total,
+      pending:   +eqVol.pending,
+      approved:  +eqVol.approved,
+      fulfilled: +eqVol.fulfilled,
+      today:     +eqVol.today,
+      this_week: +eqVol.this_week,
+    } : null,
   };
 }

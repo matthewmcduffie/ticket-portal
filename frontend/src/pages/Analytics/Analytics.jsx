@@ -46,6 +46,7 @@ export default function Analytics() {
   const byPriority = data?.by_priority || [];
   const dailyVolume = data?.daily_volume || [];
   const aging = data?.aging || [];
+  const equipment = data?.equipment ?? null;
 
   const maxDaily = Math.max(...dailyVolume.map(d => d.count), 1);
   const agingTotal = aging.reduce((sum, item) => sum + item.count, 0) || 1;
@@ -215,6 +216,21 @@ export default function Analytics() {
           ))}
         </div>
       </div>
+
+      {equipment && (
+        <div className="analytics__panel">
+          <div className="analytics__panel-header">
+            <h3>Equipment Requests</h3>
+            <span className="analytics__panel-sub">{equipment.today} today · {equipment.this_week} this week</span>
+          </div>
+          <div className="analytics__kpis analytics__kpis--sm">
+            <KpiCard label="Total" value={equipment.total} />
+            <KpiCard label="Pending"   value={equipment.pending}   accent="warning" />
+            <KpiCard label="Approved"  value={equipment.approved}  accent="success" />
+            <KpiCard label="Fulfilled" value={equipment.fulfilled} />
+          </div>
+        </div>
+      )}
 
       <Drawer
         open={!!activeAgeRange}

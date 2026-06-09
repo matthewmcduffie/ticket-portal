@@ -67,17 +67,17 @@ const router = Router();
 
 router.use(requireAuth);
 
-router.get('/activity', requireRole('admin'), getRecentActivity);
+router.get('/activity', requireRole('admin', 'technician'), getRecentActivity);
 
 router.get('/',     getTickets);
 router.post('/',    createTicket);
 
 router.get('/:id',           getTicket);
 router.patch('/:id',         updateTicket);
-router.delete('/:id',        requireRole('admin'), deleteTicket);
+router.delete('/:id',        requireRole('admin', 'technician'), deleteTicket);
 router.get('/:id/events',       getTicketEvents);
 router.post('/:id/comments',    addComment);
-router.post('/:id/merge',       requireRole('admin'), mergeTickets);
+router.post('/:id/merge',       requireRole('admin', 'technician'), mergeTickets);
 router.get('/:id/attachments',  listAttachments);
 router.post('/:id/attachments', dynamicUpload, uploadAttachment);
 

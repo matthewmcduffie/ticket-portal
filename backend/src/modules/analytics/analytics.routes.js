@@ -5,6 +5,6 @@ import { requireRole } from '../../middleware/roles.js';
 
 const router = Router();
 
-router.get('/overview', requireAuth, requireRole('admin'), overview);
+router.get('/overview', requireAuth, requireRole('admin', 'technician'), overview);
 
 export default router;

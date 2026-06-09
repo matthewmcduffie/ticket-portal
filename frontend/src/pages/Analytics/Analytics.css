@@ -20,6 +20,10 @@
   gap: var(--space-md);
 }
 
+.analytics__kpis--sm .kpi-card {
+  padding: var(--space-md);
+}
+
 .kpi-card {
   background-color: var(--color-surface-lowest);
   border: var(--border);

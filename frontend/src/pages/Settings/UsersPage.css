@@ -104,9 +104,60 @@
 }
 
 .users-actions-cell {
+  text-align: right;
+  padding-right: .25rem !important;
+}
+
+/* ── Three-dot action menu ───────────────────────────────── */
+.action-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.action-menu__trigger {
   display: flex;
-  gap: .35rem;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  padding: .2rem .3rem !important;
+}
+
+.action-menu__dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: var(--color-surface-lowest, #fff);
+  border: var(--border, 1px solid #e5e7eb);
+  border-radius: var(--radius-md, 6px);
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  min-width: 180px;
+  z-index: 200;
+  padding: .25rem 0;
+}
+
+.action-menu__item {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  padding: .5rem .875rem;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: var(--text-sm, .875rem);
+  color: var(--color-text, #1a1a1a);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.action-menu__item:hover { background: var(--color-surface-low, #f3f4f6); }
+.action-menu__item .material-symbols-outlined { font-size: 1rem; color: var(--color-text-muted, #888); }
+.action-menu__item--danger { color: #dc2626; }
+.action-menu__item--danger .material-symbols-outlined { color: #dc2626; }
+
+.action-menu__sep {
+  height: 1px;
+  background: var(--border-color, #e5e7eb);
+  margin: .25rem 0;
 }
 
 /* ── Edit user modal ─────────────────────────────────────── */
@@ -203,5 +254,58 @@
   border: 1px solid #dc2626;
 }
 .btn--danger-ghost:hover:not(:disabled) { background: #fee2e2; }
+
+/* ── Delete modal ────────────────────────────────────────── */
+.umodal--sm { max-width: 380px; }
+
+.umodal__del-msg {
+  font-size: var(--text-base);
+  color: var(--color-text);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Import section ──────────────────────────────────────── */
+.import-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.import-section__desc {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: 1.55;
+}
+
+.import-section__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.import-section__file-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .45rem .875rem;
+  border: var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: var(--color-surface-low);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.import-section__file-btn:hover { background: var(--color-surface); }
+.import-section__file-btn .material-symbols-outlined { font-size: 1.1rem; color: var(--color-text-muted); flex-shrink: 0; }
+
+/* ── Technician role badge ───────────────────────────────── */
+.role-badge--technician { background: #ede9fe; color: #6d28d9; }
 
 /* Re-use the settings table + pagination + search + perpage classes from Settings.css */

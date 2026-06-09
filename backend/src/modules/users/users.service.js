@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { randomBytes } from 'node:crypto';
 import { getDB } from '../../config/database.js';
 import { validatePassword } from '../auth/auth.service.js';
 
@@ -16,17 +17,31 @@ export async function getUserById(id) {
   return result.rows[0] || null;
 }
 
-export async function createUser({ email, name, password, role = 'user', can_view_bug_reports = false, can_use_projects = false }) {
-  const err = validatePassword(password);
-  if (err) throw Object.assign(new Error(err), { code: 'WEAK_PASSWORD' });
+export async function createUser({
+  email,
+  name,
+  password = null,
+  role = 'user',
+  can_view_bug_reports = false,
+  can_use_projects = false,
+  must_change_password = true,
+}) {
+  let hash;
+  if (password) {
+    const err = validatePassword(password);
+    if (err) throw Object.assign(new Error(err), { code: 'WEAK_PASSWORD' });
+    hash = await bcrypt.hash(password, 12);
+  } else {
+    // Generate a random unusable temp password — user must reset via email
+    hash = await bcrypt.hash(randomBytes(24).toString('hex'), 12);
+  }
 
   const db = getDB();
-  const hash = await bcrypt.hash(password, 12);
   const result = await db.query(
     `INSERT INTO users (email, name, password_hash, role, must_change_password, can_view_bug_reports, can_use_projects)
-     VALUES ($1, $2, $3, $4, TRUE, $5, $6)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING ${SAFE_FIELDS}`,
-    [email.toLowerCase(), name, hash, role, can_view_bug_reports, can_use_projects]
+    [email.toLowerCase().trim(), name.trim(), hash, role, must_change_password, can_view_bug_reports, can_use_projects]
   );
   return result.rows[0];
 }
@@ -49,7 +64,6 @@ export async function updateUser(id, updates) {
     const hash = await bcrypt.hash(updates.password, 12);
     values.push(hash);
     fields.push(`password_hash = $${values.length}`);
-    // Admin password reset — require change on next login
     values.push(true);
     fields.push(`must_change_password = $${values.length}`);
   }

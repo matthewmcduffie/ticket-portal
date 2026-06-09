@@ -8,7 +8,7 @@ const router = Router();
 // Cookie-auth required for config, signed-URL generation, and deletion
 router.get('/config',      requireAuth, getConfig);
 router.get('/:id/signed',  requireAuth, getSignedUrl);
-router.delete('/:id',      requireAuth, requireRole('admin'), deleteAttachment);
+router.delete('/:id',      requireAuth, requireRole('admin', 'technician'), deleteAttachment);
 
 // Download: requireAuth is applied only when no signed token is present (handled inside controller)
 router.get('/:id', (req, res, next) => {
