@@ -13,6 +13,7 @@ const MODULE_CONFIG = {
   bugtracker: true,
   backups: true,
   projects: true,
+  equipment: true,
 };
 
 export async function loadModules(app) {

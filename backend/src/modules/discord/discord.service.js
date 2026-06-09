@@ -55,6 +55,44 @@ export async function sendTicketNotification({ ticket, creatorName, eventType = 
   }
 }
 
+export async function sendEquipmentNotification({ request }) {
+  const webhookUrl = await getWebhookUrl();
+  if (!webhookUrl) return;
+  if ((await getSetting('discord_notify_equipment')) !== 'true') return;
+
+  const items   = (request.items || []).join(', ') || '—';
+  const dueDate = request.due_date
+    ? new Date(request.due_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    : '—';
+
+  const payload = {
+    username: 'Ticket Portal',
+    embeds: [{
+      title: '📦 Equipment Request',
+      color: 0x0f766e,
+      fields: [
+        { name: 'New Hire',   value: request.hire_name,       inline: true },
+        { name: 'Department', value: request.hire_department, inline: true },
+        { name: 'Requestor',  value: request.requestor_name,  inline: true },
+        { name: 'Items',      value: items,                   inline: false },
+        { name: 'Due Date',   value: dueDate,                 inline: true },
+      ],
+      timestamp: new Date().toISOString(),
+      footer: { text: 'Equipment Request  ·  Ticket Portal' },
+    }],
+  };
+
+  const res = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Discord webhook ${res.status}: ${text}`);
+  }
+}
+
 export async function sendTestMessage() {
   const webhookUrl = await getWebhookUrl();
   if (!webhookUrl) throw new Error('Discord webhook URL is not configured.');
@@ -90,14 +128,14 @@ export async function sendTestMessage() {
 export async function getDiscordConfig() {
   const db = getDB();
   const rows = await db.query(
-    `SELECT key, value FROM app_settings WHERE key IN ('discord_webhook_url','discord_notify_on_create','discord_notify_on_update')`
+    `SELECT key, value FROM app_settings WHERE key IN ('discord_webhook_url','discord_notify_on_create','discord_notify_on_update','discord_notify_equipment')`
   );
   return Object.fromEntries(rows.rows.map(r => [r.key, r.value]));
 }
 
 export async function saveDiscordConfig(updates) {
   const db = getDB();
-  const allowed = ['discord_webhook_url', 'discord_notify_on_create', 'discord_notify_on_update'];
+  const allowed = ['discord_webhook_url', 'discord_notify_on_create', 'discord_notify_on_update', 'discord_notify_equipment'];
   for (const [key, value] of Object.entries(updates)) {
     if (!allowed.includes(key)) continue;
     await db.query(

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import TicketModal from '../Tickets/TicketModal.jsx';
 import api from '../../services/api.js';
@@ -153,13 +153,16 @@ function UserDashboard({ user }) {
 // ADMIN DASHBOARD
 // ─────────────────────────────────────────────────────────────
 function AdminDashboard({ user }) {
-  const [tickets,       setTickets]       = useState([]);
-  const [activity,      setActivity]      = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [selected,      setSelected]      = useState(null);
-  const [activeFilter,  setActiveFilter]  = useState(null);
-  const [activityPerPage, setActivityPerPage] = useState(6);
-  const [activityPage,    setActivityPage]    = useState(1);
+  const navigate = useNavigate();
+  const [tickets,          setTickets]          = useState([]);
+  const [activity,         setActivity]         = useState([]);
+  const [loading,          setLoading]          = useState(true);
+  const [selected,         setSelected]         = useState(null);
+  const [activeFilter,     setActiveFilter]     = useState(null);
+  const [activityPerPage,  setActivityPerPage]  = useState(6);
+  const [activityPage,     setActivityPage]     = useState(1);
+  const [equipmentEnabled, setEquipmentEnabled] = useState(false);
+  const [equipment,        setEquipment]        = useState([]);
 
   const load = useCallback((showSpinner = false) => {
     if (showSpinner) setLoading(true);
@@ -173,6 +176,16 @@ function AdminDashboard({ user }) {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    api.get('/settings')
+      .then(r => {
+        const enabled = r.data.find(s => s.key === 'equipment_requests_enabled')?.value === 'true';
+        setEquipmentEnabled(enabled);
+        if (enabled) api.get('/equipment').then(e => setEquipment(e.data)).catch(() => {});
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -341,6 +354,45 @@ function AdminDashboard({ user }) {
         </div>
 
       </div>
+
+      {equipmentEnabled && equipment.length > 0 && (
+        <div className="dashboard__panel" style={{ marginTop: '1.25rem' }}>
+          <div className="dashboard__panel-header">
+            <h3>Equipment Requests</h3>
+            <Link to="/equipment" className="dashboard__action-link">View all →</Link>
+          </div>
+          <table className="dash-table">
+            <thead>
+              <tr>
+                <th>New Hire</th>
+                <th>Department</th>
+                <th>Items</th>
+                <th>Due Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {equipment.slice(0, 5).map(r => (
+                <tr key={r.id} className="dash-table__row" onClick={() => navigate(`/equipment/${r.id}`)}>
+                  <td className="dash-table__title">{r.hire_name}</td>
+                  <td>{r.hire_department}</td>
+                  <td style={{ color: 'var(--color-text-muted, #6b7280)', fontSize: '0.875rem' }}>
+                    {(r.items || []).join(', ') || '—'}
+                  </td>
+                  <td className="dash-table__date">
+                    {r.due_date ? new Date(r.due_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                  </td>
+                  <td>
+                    <span className="dash-eq-badge" data-status={r.status}>
+                      {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {selected && (
         <TicketModal ticket={selected} onClose={() => setSelected(null)} onSaved={() => { setSelected(null); load(); }} />

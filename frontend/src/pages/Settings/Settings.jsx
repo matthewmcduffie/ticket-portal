@@ -14,7 +14,8 @@ export default function Settings() {
   const [whitelistCount,  setWhitelistCount]  = useState(null);
   const [softwareCount,   setSoftwareCount]   = useState(null);
   const [backupStatus,    setBackupStatus]    = useState(null);
-  const [projectsEnabled, setProjectsEnabled] = useState(false);
+  const [projectsEnabled,   setProjectsEnabled]   = useState(false);
+  const [equipmentEnabled,  setEquipmentEnabled]  = useState(false);
 
   useEffect(() => {
     api.get('/users').then(r => setUserCount(r.data.length)).catch(() => {});
@@ -27,7 +28,10 @@ export default function Settings() {
       configured: !!r.data.backup_provider,
       scheduled: r.data.backup_schedule_enabled === 'true',
     })).catch(() => {});
-    api.get('/settings').then(r => setProjectsEnabled(r.data.find(s => s.key === 'projects_enabled')?.value === 'true')).catch(() => {});
+    api.get('/settings').then(r => {
+      setProjectsEnabled(r.data.find(s => s.key === 'projects_enabled')?.value === 'true');
+      setEquipmentEnabled(r.data.find(s => s.key === 'equipment_requests_enabled')?.value === 'true');
+    }).catch(() => {});
   }, []);
 
   const CARDS = [
@@ -136,6 +140,15 @@ export default function Settings() {
       status: projectsEnabled ? 'enabled' : 'disabled',
       action: 'drawer',
     },
+    {
+      id: 'equipment',
+      icon: 'devices',
+      iconColor: '#0f766e',
+      title: 'Equipment Requests',
+      description: 'Turn the Equipment Requests module on or off. When enabled, admins can submit and track new hire equipment requests.',
+      status: equipmentEnabled ? 'enabled' : 'disabled',
+      action: 'drawer',
+    },
   ];
 
   function handleCard(card) {
@@ -199,6 +212,10 @@ export default function Settings() {
 
       <Drawer open={activeDrawer === 'projects'} onClose={() => setActiveDrawer(null)} title="Projects Settings">
         <ProjectsDrawer onConfigChange={enabled => setProjectsEnabled(enabled)} />
+      </Drawer>
+
+      <Drawer open={activeDrawer === 'equipment'} onClose={() => setActiveDrawer(null)} title="Equipment Requests Settings">
+        <EquipmentDrawer onConfigChange={enabled => setEquipmentEnabled(enabled)} />
       </Drawer>
     </div>
   );
@@ -428,6 +445,18 @@ function DiscordDrawer({ onConfigChange }) {
             <div className="drawer-toggle__info">
               <div className="drawer-toggle__label">Ticket status updated</div>
               <div className="drawer-toggle__desc">Post when a ticket's status changes.</div>
+            </div>
+          </label>
+          <label className="drawer-toggle">
+            <input
+              type="checkbox"
+              className="drawer-toggle__check"
+              checked={config.discord_notify_equipment === 'true'}
+              onChange={e => handleChange('discord_notify_equipment', e.target.checked ? 'true' : 'false')}
+            />
+            <div className="drawer-toggle__info">
+              <div className="drawer-toggle__label">Equipment request created</div>
+              <div className="drawer-toggle__desc">Post when a new equipment request is submitted.</div>
             </div>
           </label>
         </div>
@@ -689,6 +718,18 @@ function SlackDrawer({ onConfigChange }) {
               <div className="drawer-toggle__desc">Post when a ticket's status changes.</div>
             </div>
           </label>
+          <label className="drawer-toggle">
+            <input
+              type="checkbox"
+              className="drawer-toggle__check"
+              checked={config.slack_notify_equipment === 'true'}
+              onChange={e => handleChange('slack_notify_equipment', e.target.checked ? 'true' : 'false')}
+            />
+            <div className="drawer-toggle__info">
+              <div className="drawer-toggle__label">Equipment request created</div>
+              <div className="drawer-toggle__desc">Post when a new equipment request is submitted.</div>
+            </div>
+          </label>
         </div>
       </div>
 
@@ -916,6 +957,64 @@ function BugTrackerDrawer({ onCountChange }) {
             ))}
           </div>
         )}
+      </div>
+    </>
+  );
+}
+
+// ─── Equipment Requests Drawer ─────────────────────────────────────────────────
+function EquipmentDrawer({ onConfigChange }) {
+  const [enabled, setEnabled] = useState(null);
+  const [saving,  setSaving]  = useState(false);
+  const [toast,   setToast]   = useState('');
+
+  useEffect(() => {
+    api.get('/settings')
+      .then(r => setEnabled(r.data.find(s => s.key === 'equipment_requests_enabled')?.value === 'true'))
+      .catch(console.error);
+  }, []);
+
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 2500); }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await api.patch('/settings/equipment_requests_enabled', { value: enabled ? 'true' : 'false' });
+      showToast('Saved');
+      onConfigChange?.(enabled);
+    } catch { showToast('Error saving'); }
+    finally { setSaving(false); }
+  }
+
+  if (enabled === null) return <div className="drawer-loading">Loading…</div>;
+
+  return (
+    <>
+      {toast && <div className="drawer-toast drawer-toast--success">{toast}</div>}
+
+      <div className="drawer-section">
+        <h4 className="drawer-section__title">Enable Equipment Requests</h4>
+        <p className="drawer-section__desc">When enabled, admins will see an Equipment Requests link in the sidebar and can submit and manage new hire equipment requests. When disabled, the link is hidden and all API requests are rejected.</p>
+        <div className="drawer-toggles">
+          <label className="drawer-toggle">
+            <input
+              type="checkbox"
+              className="drawer-toggle__check"
+              checked={enabled}
+              onChange={e => setEnabled(e.target.checked)}
+            />
+            <div className="drawer-toggle__info">
+              <div className="drawer-toggle__label">Allow admins to create and manage equipment requests</div>
+              <div className="drawer-toggle__desc">Track laptop, monitor, keyboard, and mouse provisioning for new hires with a full audit trail.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div className="drawer-actions">
+        <button className="btn btn--primary" onClick={save} disabled={saving}>
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
       </div>
     </>
   );

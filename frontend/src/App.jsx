@@ -13,6 +13,9 @@ import BackupsPage from './pages/Settings/BackupsPage.jsx';
 import RestorePage from './pages/Settings/RestorePage.jsx';
 import ProjectsPage from './pages/Projects/ProjectsPage.jsx';
 import ProjectPage from './pages/Projects/ProjectPage.jsx';
+import EquipmentPage from './pages/Equipment/EquipmentPage.jsx';
+import EquipmentNewPage from './pages/Equipment/EquipmentNewPage.jsx';
+import EquipmentDetailPage from './pages/Equipment/EquipmentDetailPage.jsx';
 import Analytics from './pages/Analytics/Analytics.jsx';
 import ChangePassword from './pages/ChangePassword/ChangePassword.jsx';
 import ResetPassword from './pages/ResetPassword/ResetPassword.jsx';
@@ -34,6 +37,9 @@ export default function App() {
               <Route path="/bugs" element={<Bugs />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:id" element={<ProjectPage />} />
+              <Route path="/equipment" element={<EquipmentPage />} />
+              <Route path="/equipment/new" element={<EquipmentNewPage />} />
+              <Route path="/equipment/:id" element={<EquipmentDetailPage />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/settings/users" element={<UsersPage />} />

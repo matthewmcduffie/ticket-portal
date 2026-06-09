@@ -66,6 +66,35 @@ export async function sendTicketNotification({ ticket, creatorName, eventType = 
   await post(webhookUrl, buildBlocks({ title, ticket, creatorName }));
 }
 
+export async function sendEquipmentNotification({ request }) {
+  const webhookUrl = await getWebhookUrl();
+  if (!webhookUrl) return;
+  if ((await getSetting('slack_notify_equipment')) !== 'true') return;
+
+  const items   = (request.items || []).join(', ') || '—';
+  const dueDate = request.due_date
+    ? new Date(request.due_date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    : '—';
+
+  await post(webhookUrl, {
+    blocks: [
+      { type: 'header', text: { type: 'plain_text', text: '📦 Equipment Request', emoji: true } },
+      {
+        type: 'section',
+        fields: [
+          { type: 'mrkdwn', text: `*New Hire*\n${request.hire_name}` },
+          { type: 'mrkdwn', text: `*Department*\n${request.hire_department}` },
+          { type: 'mrkdwn', text: `*Requestor*\n${request.requestor_name}` },
+          { type: 'mrkdwn', text: `*Due Date*\n${dueDate}` },
+          { type: 'mrkdwn', text: `*Items*\n${items}` },
+        ],
+      },
+      { type: 'divider' },
+      { type: 'context', elements: [{ type: 'mrkdwn', text: 'Equipment Request  ·  Ticket Portal' }] },
+    ],
+  });
+}
+
 export async function sendTestMessage() {
   const webhookUrl = await getWebhookUrl();
   if (!webhookUrl) throw new Error('Slack webhook URL is not configured.');
@@ -97,14 +126,14 @@ export async function sendTestMessage() {
 export async function getSlackConfig() {
   const db = getDB();
   const rows = await db.query(
-    `SELECT key, value FROM app_settings WHERE key IN ('slack_webhook_url','slack_notify_on_create','slack_notify_on_update')`
+    `SELECT key, value FROM app_settings WHERE key IN ('slack_webhook_url','slack_notify_on_create','slack_notify_on_update','slack_notify_equipment')`
   );
   return Object.fromEntries(rows.rows.map(r => [r.key, r.value]));
 }
 
 export async function saveSlackConfig(updates) {
   const db = getDB();
-  const allowed = ['slack_webhook_url', 'slack_notify_on_create', 'slack_notify_on_update'];
+  const allowed = ['slack_webhook_url', 'slack_notify_on_create', 'slack_notify_on_update', 'slack_notify_equipment'];
   for (const [key, value] of Object.entries(updates)) {
     if (!allowed.includes(key)) continue;
     await db.query(

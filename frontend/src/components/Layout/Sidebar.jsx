@@ -16,14 +16,19 @@ export default function Sidebar({ open, onClose }) {
   const canViewBugs = user?.role === 'admin' || user?.can_view_bug_reports;
   const canUseProjects = user?.role === 'admin' || user?.can_use_projects;
 
+  const isAdmin = user?.role === 'admin';
+
   const [projectsEnabled, setProjectsEnabled] = useState(false);
+  const [equipmentEnabled, setEquipmentEnabled] = useState(false);
   useEffect(() => {
-    if (!canUseProjects) return;
-    api.get('/settings')
-      .then(r => setProjectsEnabled(r.data.find(s => s.key === 'projects_enabled')?.value === 'true'))
-      .catch(() => {});
-  }, [canUseProjects]);
+    if (!canUseProjects && !isAdmin) return;
+    api.get('/settings').then(r => {
+      setProjectsEnabled(r.data.find(s => s.key === 'projects_enabled')?.value === 'true');
+      setEquipmentEnabled(r.data.find(s => s.key === 'equipment_requests_enabled')?.value === 'true');
+    }).catch(() => {});
+  }, [canUseProjects, isAdmin]);
   const showProjects = canUseProjects && projectsEnabled;
+  const showEquipment = isAdmin && equipmentEnabled;
 
   const navLink = (item) => (
     <NavLink
@@ -64,6 +69,7 @@ export default function Sidebar({ open, onClose }) {
           .map(navLink)}
         {canViewBugs && navLink({ to: '/bugs', label: 'Bug Tracker', icon: 'bug_report' })}
         {showProjects && navLink({ to: '/projects', label: 'Projects', icon: 'folder_special' })}
+        {showEquipment && navLink({ to: '/equipment', label: 'Equipment', icon: 'devices' })}
       </nav>
 
       {user?.role === 'admin' && (

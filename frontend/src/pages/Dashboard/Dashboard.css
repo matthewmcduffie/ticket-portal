@@ -465,3 +465,17 @@
 }
 
 .activity-item__sep { opacity: 0.4; }
+
+/* Equipment request status badges in dashboard */
+.dash-eq-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dash-eq-badge[data-status="pending"]   { background: #fef3c7; color: #92400e; }
+.dash-eq-badge[data-status="approved"]  { background: #d1fae5; color: #065f46; }
+.dash-eq-badge[data-status="fulfilled"] { background: #dbeafe; color: #1e3a8a; }
